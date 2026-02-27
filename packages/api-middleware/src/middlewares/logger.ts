@@ -1,3 +1,4 @@
+import { OBSERVABILITY_ACTIONS, ObservabilityAction } from "../actions";
 import { MiddlewareFn } from "../types";
 
 const SENSITIVE_KEYS = [
@@ -33,6 +34,35 @@ export function safeJsonStringify(value: unknown, maxBytes = 16384): string {
   if (bytes.length <= maxBytes) return text;
   const head = text.slice(0, Math.max(0, maxBytes - 120));
   return JSON.stringify({ __truncated__: true, preview: head });
+}
+
+function parseSampleRate(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.min(1, parsed));
+}
+
+function parseNumber(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return parsed;
+}
+
+function hashRequestIdToUnitInterval(requestId: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < requestId.length; index += 1) {
+    hash ^= requestId.charCodeAt(index);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  const normalized = (hash >>> 0) / 4294967295;
+  return normalized;
+}
+
+function getActionForHttpLog(statusCode: number, hadUnhandledError: boolean): ObservabilityAction {
+  if (hadUnhandledError || statusCode >= 500) {
+    return OBSERVABILITY_ACTIONS.HTTP_ERROR;
+  }
+  return OBSERVABILITY_ACTIONS.HTTP_RESPONSE;
 }
 
 export function withLogging(opts?: { actionPrefix?: string }): MiddlewareFn {
@@ -78,9 +108,20 @@ export function withLogging(opts?: { actionPrefix?: string }): MiddlewareFn {
 
         const level = statusCode >= 500 ? "error" : statusCode >= 400 ? "warn" : "info";
         const source = "api";
-        const action = opts?.actionPrefix || "http.request";
+        const action = getActionForHttpLog(statusCode, Boolean(caughtError));
+        const logSampleRateInfo = parseSampleRate(ctx.env.LOG_SAMPLE_RATE_INFO, 0.2);
+        const logSampleRateDebug = parseSampleRate(ctx.env.LOG_SAMPLE_RATE_DEBUG, 0);
+        const logAlwaysSlowMs = parseNumber(ctx.env.LOG_ALWAYS_LOG_SLOW_MS, 1500);
+        const normalizedRequestId = String(ctx.request_id || ctx.correlation_id || "missing-request-id");
+        const requestHash = hashRequestIdToUnitInterval(normalizedRequestId);
+        const isSlowRequest = durationMs >= logAlwaysSlowMs;
+        const mustLogLevel = level === "warn" || level === "error";
+        const levelSampleRate = logSampleRateInfo;
+        const isSampledIn = requestHash <= levelSampleRate;
+        const shouldLogRequest = mustLogLevel || isSlowRequest || isSampledIn;
 
-        const payload = {
+        if (shouldLogRequest) {
+          const payload = {
           id: crypto.randomUUID(),
           created_at: new Date().toISOString(),
           level,
@@ -104,14 +145,23 @@ export function withLogging(opts?: { actionPrefix?: string }): MiddlewareFn {
               user_agent: ctx.user_agent,
               request_json: requestPayload,
               response_json: responsePayload,
+              action_prefix: opts?.actionPrefix || null,
+              sampling: {
+                sampled_in: isSampledIn,
+                sample_rate_info: logSampleRateInfo,
+                sample_rate_debug: logSampleRateDebug,
+                request_hash: requestHash,
+                slow_request: isSlowRequest,
+                slow_threshold_ms: logAlwaysSlowMs,
+              },
           }),
           data_json: safeJsonStringify({
               error: caughtError ? String(caughtError) : undefined,
           })
-        };
+          };
 
-        if (ctx.env.DB) {
-          ctx.env.DB.prepare(
+          if (ctx.env.DB) {
+            ctx.env.DB.prepare(
               `INSERT INTO event_logs
                (id, created_at, level, source, action, correlation_id, user_email, user_id, entity_type, entity_id, message, data_json, request_id, event_type, ip_address, duration_ms, method, path, status_code, metadata)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -134,8 +184,9 @@ export function withLogging(opts?: { actionPrefix?: string }): MiddlewareFn {
                   message: error.message,
                 });
               });
-        } else {
-          console.log(JSON.stringify(payload));
+          } else {
+            console.log(JSON.stringify(payload));
+          }
         }
       }
     }
