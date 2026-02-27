@@ -38,77 +38,106 @@ export function safeJsonStringify(value: unknown, maxBytes = 16384): string {
 export function withLogging(opts?: { actionPrefix?: string }): MiddlewareFn {
   return async (req, ctx, next) => {
     const startedAt = Date.now();
-    
-    // We expect body parsing might happen in a downstream middleware (withJsonBody)
-    const requestPayload = ctx.state?.parsedBody || null; 
+    let response: Response | null = null;
+    let caughtError: unknown = null;
+    try {
+      response = await next();
+      return response;
+    } catch (error) {
+      caughtError = error;
+      throw error;
+    } finally {
+      if (ctx.state.__logged_once) {
+        // already logged by another middleware layer
+      } else {
+        ctx.state.__logged_once = true;
+        const durationMs = Date.now() - startedAt;
+        const statusCode = response?.status ?? 500;
 
-    const response = await next();
-    const durationMs = Date.now() - startedAt;
-    
-    // Try to parse response payload if json (just a peek)
-    let responsePayload: unknown = null;
-    const contentType = response.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
-       try {
-           const cloned = response.clone();
-           responsePayload = await cloned.json().catch(() => null);
-       } catch {}
-    }
+        let responsePayload: unknown = null;
+        if (response) {
+          const contentType = response.headers.get("content-type") || "";
+          if (contentType.includes("application/json")) {
+            try {
+              const cloned = response.clone();
+              responsePayload = await cloned.json().catch(() => null);
+            } catch {
+              responsePayload = null;
+            }
+          }
+        }
 
-    const statusCode = response.status || 200;
-    const level = statusCode >= 500 ? "error" : statusCode >= 400 ? "warn" : "info";
-    const source = "api";
-    const action = opts?.actionPrefix || "http.request";
+        let requestPayload: unknown = null;
+        const parsedBody = ctx.state?.parsedBody;
+        if (parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)) {
+          requestPayload = {
+            __body_logged__: false,
+            key_count: Object.keys(parsedBody as Record<string, unknown>).length,
+          };
+        }
 
-    const payload = {
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        level,
-        source,
-        action,
-        correlation_id: ctx.correlation_id,
-        user_email: ctx.user_email || null,
-        user_id: ctx.user_id || null,
-        message: `${ctx.method} ${ctx.route} -> ${statusCode}`,
-        request_id: ctx.request_id || null,
-        event_type: "http",
-        ip_address: ctx.ip || null,
-        duration_ms: durationMs,
-        method: ctx.method,
-        path: ctx.route,
-        status_code: statusCode,
-        entity_type: null,
-        entity_id: null,
-        metadata: safeJsonStringify({
-            query: Object.fromEntries(new URL(req.url).searchParams.entries()),
-            user_agent: ctx.user_agent,
-            request_json: ctx.state.parsedBody,
-            response_json: responsePayload,
-        }),
-        data_json: safeJsonStringify({
-            error: ctx.state.unhandledError ? String(ctx.state.unhandledError) : undefined,
-        })
-    };
+        const level = statusCode >= 500 ? "error" : statusCode >= 400 ? "warn" : "info";
+        const source = "api";
+        const action = opts?.actionPrefix || "http.request";
 
-    if (ctx.env.DB) {
-        // Log to D1 async
-        ctx.env.DB.prepare(
-            `INSERT INTO event_logs
-             (id, created_at, level, source, action, correlation_id, user_email, user_id, entity_type, entity_id, message, data_json, request_id, event_type, ip_address, duration_ms, method, path, status_code, metadata)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          )
-            .bind(
-                payload.id, payload.created_at, payload.level, payload.source, payload.action, payload.correlation_id,
-                payload.user_email, payload.user_id, payload.entity_type, payload.entity_id, payload.message,
-                payload.data_json, payload.request_id, payload.event_type, payload.ip_address, payload.duration_ms,
-                payload.method, payload.path, payload.status_code, payload.metadata
+        const payload = {
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString(),
+          level,
+          source,
+          action,
+          correlation_id: ctx.correlation_id,
+          user_email: ctx.user_email || null,
+          user_id: ctx.user_id || null,
+          message: `${ctx.method} ${ctx.route} -> ${statusCode}`,
+          request_id: ctx.request_id || null,
+          event_type: "http",
+          ip_address: ctx.ip || null,
+          duration_ms: durationMs,
+          method: ctx.method,
+          path: ctx.route,
+          status_code: statusCode,
+          entity_type: null,
+          entity_id: null,
+          metadata: safeJsonStringify({
+              query: Object.fromEntries(new URL(req.url).searchParams.entries()),
+              user_agent: ctx.user_agent,
+              request_json: requestPayload,
+              response_json: responsePayload,
+          }),
+          data_json: safeJsonStringify({
+              error: caughtError ? String(caughtError) : undefined,
+          })
+        };
+
+        if (ctx.env.DB) {
+          ctx.env.DB.prepare(
+              `INSERT INTO event_logs
+               (id, created_at, level, source, action, correlation_id, user_email, user_id, entity_type, entity_id, message, data_json, request_id, event_type, ip_address, duration_ms, method, path, status_code, metadata)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
             )
-            .run()
-            .catch((e: Error) => console.error("Logging to DB failed:", e.message));
-    } else {
-        console.log(JSON.stringify(payload));
+              .bind(
+                  payload.id, payload.created_at, payload.level, payload.source, payload.action, payload.correlation_id,
+                  payload.user_email, payload.user_id, payload.entity_type, payload.entity_id, payload.message,
+                  payload.data_json, payload.request_id, payload.event_type, payload.ip_address, payload.duration_ms,
+                  payload.method, payload.path, payload.status_code, payload.metadata
+              )
+              .run()
+              .catch((error: Error) => {
+                const safeErrorCode =
+                  error.message?.toLowerCase().includes("constraint") ? "constraint_error" :
+                  error.message?.toLowerCase().includes("no such table") ? "schema_mismatch" :
+                  "log_sink_failed";
+                console.warn("[withLogging] non-fatal log sink failure", {
+                  correlation_id: ctx.correlation_id,
+                  code: safeErrorCode,
+                  message: error.message,
+                });
+              });
+        } else {
+          console.log(JSON.stringify(payload));
+        }
+      }
     }
-
-    return response;
   };
 }
