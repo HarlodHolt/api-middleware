@@ -1,5 +1,5 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 
 import {
   classifyError,
@@ -8,19 +8,22 @@ import {
   getRetryAfterSeconds,
   getWindowStartSeconds,
   resolveRequestIds,
-  withRateLimit,
   verifyHmacSignature,
+  withRateLimit,
 } from "../src/index";
 
 test("resolveRequestIds prefers x-correlation-id and falls back to cf-ray", () => {
-  const headers = new Headers({
-    "X-Correlation-Id": "corr-1",
-    "CF-Ray": "ray-1",
+  const request = new Request("https://example.com", {
+    headers: {
+      "X-Correlation-Id": "corr-1",
+      "CF-Ray": "ray-1",
+    },
   });
-  const ids = resolveRequestIds(headers, () => "generated");
-  assert.equal(ids.correlationId, "corr-1");
-  assert.equal(ids.requestId, "ray-1");
-  assert.equal(getHeaderCaseInsensitive(headers, "x-correlation-id"), "corr-1");
+
+  const ids = resolveRequestIds(request, null, () => "generated-id");
+  assert.equal(ids.correlation_id, "corr-1");
+  assert.equal(ids.request_id, "ray-1");
+  assert.equal(getHeaderCaseInsensitive(request.headers, "x-correlation-id"), "corr-1");
 });
 
 test("classifyError maps D1 unique constraint to 409", () => {
@@ -33,64 +36,46 @@ test("HMAC verify succeeds for matching payload and fails otherwise", async () =
   const secret = "test-secret";
   const payload = "POST\n/api/test\n1700000000\nnonce\nhash";
   const signature = await createHmacSignature(secret, payload);
+
   assert.equal(await verifyHmacSignature({ secret, payload, signature }), true);
-  assert.equal(await verifyHmacSignature({ secret, payload: `${payload}-x`, signature }), false);
+  assert.equal(await verifyHmacSignature({ secret, payload: `${payload}-mismatch`, signature }), false);
 });
 
 test("rate limit window helpers return stable bucket and retry-after", () => {
-  const nowMs = 1710000123456;
+  const nowMilliseconds = 1710000123456;
   const windowSeconds = 60;
-  const windowStart = getWindowStartSeconds(nowMs, windowSeconds);
+  const windowStart = getWindowStartSeconds(nowMilliseconds, windowSeconds);
   assert.equal(windowStart, 1710000120);
-  const retry = getRetryAfterSeconds(nowMs, windowStart, windowSeconds);
-  assert.ok(retry >= 1 && retry <= windowSeconds);
+
+  const retryAfter = getRetryAfterSeconds(nowMilliseconds, windowStart, windowSeconds);
+  assert.ok(retryAfter >= 1 && retryAfter <= windowSeconds);
 });
 
-test("withRateLimit returns 429 with retry-after header", async () => {
-  const counters = new Map<string, number>();
-  const db = {
-    prepare(sql: string) {
-      let bound: Array<unknown> = [];
-      return {
-        bind(...values: Array<unknown>) {
-          bound = values;
-          return this;
-        },
-        async run() {
-          if (sql.includes("INSERT INTO api_rate_limits")) {
-            const key = `${String(bound[0])}:${String(bound[1])}`;
-            counters.set(key, (counters.get(key) || 0) + 1);
-          }
-          return {};
-        },
-        async first() {
-          const key = `${String(bound[0])}:${String(bound[1])}`;
-          return { request_count: counters.get(key) || 0 };
-        },
-      };
-    },
-  };
-
+test("withRateLimit returns 429 with retry-after header in memory mode", async () => {
   const middleware = withRateLimit({
     limit: 1,
-    windowSeconds: 60,
-    keyFn: () => "ip-test",
+    window_seconds: 60,
+    key_fn: () => "ip-test",
+    mode: "memory",
   });
-  const req = new Request("https://example.com/api/test");
-  const ctx = {
+
+  const request = new Request("https://example.com/api/test");
+  const context = {
     correlation_id: "corr-1",
+    request_id: "req-1",
     start_ms: Date.now(),
     ip: "1.1.1.1",
     user_agent: null,
     route: "/api/test",
     method: "GET",
-    env: { DB: db },
+    env: {},
     state: {},
   };
 
-  const first = await middleware(req, ctx, async () => new Response("ok"));
-  assert.equal(first.status, 200);
-  const second = await middleware(req, ctx, async () => new Response("ok"));
-  assert.equal(second.status, 429);
-  assert.ok(second.headers.get("Retry-After"));
+  const firstResponse = await middleware(request, context, async () => new Response("ok"));
+  assert.equal(firstResponse.status, 200);
+
+  const secondResponse = await middleware(request, context, async () => new Response("ok"));
+  assert.equal(secondResponse.status, 429);
+  assert.ok(secondResponse.headers.get("retry-after"));
 });
