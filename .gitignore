@@ -10,3 +10,6 @@
 admin_olive_and_ivory_gifts/
 olive_and_ivory_api/
 olive_and_ivory_gifts/
+
+node_modules/
+dist/
