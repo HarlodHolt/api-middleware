@@ -24,6 +24,7 @@ export interface ApiError {
   status: number;
   details?: unknown;
   cause?: unknown;
+  headers?: HeadersInit;
 }
 
 export type MiddlewareContext = RequestContext & {

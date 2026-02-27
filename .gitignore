@@ -1,0 +1,12 @@
+# OS / local tooling
+.DS_Store
+.wrangler/
+
+# Dependencies and build artifacts
+**/node_modules/
+**/dist/
+
+# Local sibling workspaces checked out beside this repo
+admin_olive_and_ivory_gifts/
+olive_and_ivory_api/
+olive_and_ivory_gifts/

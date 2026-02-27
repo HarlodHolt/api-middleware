@@ -3,15 +3,19 @@
         "target": "ESNext",
         "module": "ESNext",
         "moduleResolution": "Bundler",
+        "outDir": "dist",
+        "rootDir": "src",
         "lib": [
             "ESNext",
-            "DOM"
+            "DOM",
+            "DOM.Iterable"
         ],
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "declaration": true
+        "declaration": true,
+        "declarationMap": true
     },
     "include": [
         "src/**/*"
