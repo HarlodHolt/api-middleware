@@ -14,6 +14,10 @@ async function hmacBase64(secret: string, payload: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(sig)));
 }
 
+export async function createHmacSignature(secret: string, payload: string): Promise<string> {
+  return hmacBase64(secret, payload);
+}
+
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let out = 0;
@@ -21,14 +25,27 @@ function timingSafeEqual(a: string, b: string): boolean {
   return out === 0;
 }
 
+export async function verifyHmacSignature(args: {
+  secret: string;
+  payload: string;
+  signature: string;
+}): Promise<boolean> {
+  const expected = await hmacBase64(args.secret, args.payload);
+  return timingSafeEqual(expected, args.signature);
+}
+
 export function withAuthHmac(opts: {
   secretEnvKey: string;
   toleranceSeconds?: number;
   replayProtection?: boolean;
+  skip?: (req: Request, ctx: { env: Record<string, unknown>; state: Record<string, unknown> }) => boolean;
 }): MiddlewareFn {
-  const { secretEnvKey, toleranceSeconds = 300, replayProtection = true } = opts;
+  const { secretEnvKey, toleranceSeconds = 300, replayProtection = true, skip } = opts;
 
   return async (req, ctx, next) => {
+    if (skip?.(req, ctx as unknown as { env: Record<string, unknown>; state: Record<string, unknown> })) {
+      return next();
+    }
     const secret = String(ctx.env[secretEnvKey] || "").trim();
     if (!secret) return jsonError({ status: 500, code: "misconfiguration", message: "Server misconfiguration: missing HMAC secret", correlation_id: ctx.correlation_id });
 
@@ -72,7 +89,7 @@ export function withAuthHmac(opts: {
       await db.prepare(CREATE).run();
       const existing = await db.prepare("SELECT nonce FROM api_nonces WHERE nonce = ?").bind(nonce).first();
       if (existing) {
-        return jsonError({ status: 401, code: "unauthorized", message: "Nonce replay detected", correlation_id: ctx.correlation_id });
+        return jsonError({ status: 403, code: "forbidden", message: "Nonce replay detected", correlation_id: ctx.correlation_id });
       }
       await db.prepare("INSERT INTO api_nonces (nonce, created_at) VALUES (?, ?)").bind(nonce, new Date().toISOString()).run();
       // Cleanup chance for performance: maybe trigger this via cron or just 10% chance

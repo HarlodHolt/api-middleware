@@ -1,38 +1,27 @@
 import { MiddlewareFn } from "../types";
+import { getHeaderCaseInsensitive, resolveRequestIds } from "../request-context";
 
 export function withRequestContext(): MiddlewareFn {
   return async (req, ctx, next) => {
     const url = new URL(req.url);
-    const correlationId =
-      req.headers.get("x-correlation-id") ||
-      req.headers.get("correlation-id") ||
-      crypto.randomUUID();
+    const ids = resolveRequestIds(req.headers);
 
-    const requestId =
-      req.headers.get("cf-ray") ||
-      req.headers.get("x-request-id") ||
-      crypto.randomUUID();
-
-    let ip = req.headers.get("cf-connecting-ip");
+    let ip = getHeaderCaseInsensitive(req.headers, "cf-connecting-ip");
     if (!ip) {
-      const forwarded = req.headers.get("x-forwarded-for");
+      const forwarded = getHeaderCaseInsensitive(req.headers, "x-forwarded-for");
       if (forwarded) ip = forwarded.split(",")[0]?.trim();
     }
 
-    ctx.correlation_id = correlationId;
-    ctx.request_id = requestId;
+    ctx.correlation_id = ids.correlationId;
+    ctx.request_id = ids.requestId;
     ctx.start_ms = Date.now();
     ctx.ip = ip || null;
-    ctx.user_agent = req.headers.get("user-agent") || null;
+    ctx.user_agent = getHeaderCaseInsensitive(req.headers, "user-agent") || null;
     ctx.route = url.pathname;
     ctx.method = req.method;
 
-    const userEmail =
-      req.headers.get("cf-access-authenticated-user-email") ||
-      req.headers.get("Cf-Access-Authenticated-User-Email");
-    const userId =
-      req.headers.get("cf-access-authenticated-user-id") ||
-      req.headers.get("Cf-Access-Authenticated-User-Id");
+    const userEmail = getHeaderCaseInsensitive(req.headers, "cf-access-authenticated-user-email");
+    const userId = getHeaderCaseInsensitive(req.headers, "cf-access-authenticated-user-id");
 
     ctx.user_id = userId || null;
     ctx.user_email = userEmail || null;

@@ -7,7 +7,7 @@ export function jsonOk(data: unknown, status = 200) {
   });
 }
 
-export function jsonError(error: ApiError & { correlation_id?: string }) {
+export function jsonError(error: ApiError & { correlation_id?: string; headers?: HeadersInit }) {
   const body = {
     ok: false,
     error: {
@@ -17,9 +17,18 @@ export function jsonError(error: ApiError & { correlation_id?: string }) {
     },
     details: error.details,
   };
+  const headers = new Headers({
+    "Content-Type": "application/json",
+  });
+  if (error.headers) {
+    const extra = new Headers(error.headers);
+    for (const [key, value] of extra.entries()) {
+      headers.set(key, value);
+    }
+  }
   return new Response(JSON.stringify(body), {
     status: error.status,
-    headers: { "Content-Type": "application/json" },
+    headers,
   });
 }
 
