@@ -1,5 +1,6 @@
 import { MiddlewareFn } from "../types";
 import { jsonError } from "../helpers";
+import { OBSERVABILITY_ACTIONS } from "../actions";
 
 export function getWindowStartSeconds(nowMs: number, windowSeconds: number): number {
   const nowSeconds = Math.floor(nowMs / 1000);
@@ -36,6 +37,57 @@ export function withRateLimit(opts: {
       keyColumn = "ip_address";
     }
     return keyColumn;
+  }
+
+  async function writeRateLimitLog(args: {
+    ctx: any;
+    req: Request;
+    level: "info" | "warn" | "error";
+    action: string;
+    message: string;
+    statusCode: number;
+    details?: Record<string, unknown>;
+  }) {
+    if (!args.ctx.env?.DB) return;
+    try {
+      const queryParams = Object.fromEntries(new URL(args.req.url).searchParams.entries());
+      await args.ctx.env.DB.prepare(
+        `INSERT INTO event_logs
+         (id, created_at, level, source, action, correlation_id, user_email, user_id, entity_type, entity_id, message, data_json, request_id, event_type, ip_address, duration_ms, method, path, status_code, metadata)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        crypto.randomUUID(),
+        new Date().toISOString(),
+        args.level,
+        "api",
+        args.action,
+        args.ctx.correlation_id,
+        args.ctx.user_email || null,
+        args.ctx.user_id || null,
+        null,
+        null,
+        args.message,
+        JSON.stringify({}),
+        args.ctx.request_id || null,
+        "security",
+        args.ctx.ip || null,
+        null,
+        args.req.method,
+        args.ctx.route || new URL(args.req.url).pathname,
+        args.statusCode,
+        JSON.stringify({
+          query: queryParams,
+          user_agent: args.ctx.user_agent || null,
+          ...(args.details || {}),
+        })
+      ).run();
+    } catch (error) {
+      console.warn("[withRateLimit] non-fatal rate-limit log failure", {
+        correlation_id: args.ctx.correlation_id,
+        code: "db_error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   return async (req, ctx, next) => {
@@ -76,6 +128,20 @@ export function withRateLimit(opts: {
       }
 
       if (count > opts.limit) {
+         await writeRateLimitLog({
+          ctx,
+          req,
+          level: "warn",
+          action: OBSERVABILITY_ACTIONS.RATE_LIMIT_BLOCK,
+          message: "Rate limit blocked request",
+          statusCode: 429,
+          details: {
+            bucket_key: bucketKey,
+            request_count: count,
+            limit: opts.limit,
+            window_start: windowStart,
+          },
+         });
          return jsonError({
             status: 429,
             code: "rate_limited",
@@ -86,9 +152,29 @@ export function withRateLimit(opts: {
             },
          });
       }
+      await writeRateLimitLog({
+        ctx,
+        req,
+        level: "info",
+        action: OBSERVABILITY_ACTIONS.RATE_LIMIT_OK,
+        message: "Rate limit check passed",
+        statusCode: 200,
+        details: {
+          bucket_key: bucketKey,
+          request_count: count,
+          limit: opts.limit,
+          window_start: windowStart,
+        },
+      });
     } catch {
-      // Ignore schema missing errors unless we want to crash 
-      // or we can auto-create api_rate_limits table
+      await writeRateLimitLog({
+        ctx,
+        req,
+        level: "error",
+        action: OBSERVABILITY_ACTIONS.DB_ERROR,
+        message: "Rate limit storage failed",
+        statusCode: 500,
+      });
     }
 
     return next();

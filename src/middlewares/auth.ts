@@ -1,5 +1,6 @@
 import { MiddlewareFn } from "../types";
 import { jsonError } from "../helpers";
+import { OBSERVABILITY_ACTIONS } from "../actions";
 
 async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
@@ -42,25 +43,117 @@ export function withAuthHmac(opts: {
 }): MiddlewareFn {
   const { secretEnvKey, toleranceSeconds = 300, replayProtection = true, skip } = opts;
 
+  async function writeAuthLog(args: {
+    ctx: any;
+    req: Request;
+    level: "security" | "warn" | "error" | "info";
+    action: string;
+    message: string;
+    statusCode: number;
+    details?: Record<string, unknown>;
+  }) {
+    const { ctx, req } = args;
+    if (!ctx.env?.DB) {
+      return;
+    }
+    try {
+      const queryParams = Object.fromEntries(new URL(req.url).searchParams.entries());
+      await ctx.env.DB.prepare(
+        `INSERT INTO event_logs
+         (id, created_at, level, source, action, correlation_id, user_email, user_id, entity_type, entity_id, message, data_json, request_id, event_type, ip_address, duration_ms, method, path, status_code, metadata)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        crypto.randomUUID(),
+        new Date().toISOString(),
+        args.level,
+        "api",
+        args.action,
+        ctx.correlation_id,
+        ctx.user_email || null,
+        ctx.user_id || null,
+        null,
+        null,
+        args.message,
+        JSON.stringify({}),
+        ctx.request_id || null,
+        "security",
+        ctx.ip || null,
+        null,
+        req.method,
+        ctx.route || new URL(req.url).pathname,
+        args.statusCode,
+        JSON.stringify({
+          query: queryParams,
+          user_agent: ctx.user_agent || null,
+          ...(args.details || {}),
+        })
+      ).run();
+    } catch (error) {
+      console.warn("[withAuthHmac] non-fatal auth log failure", {
+        correlation_id: ctx.correlation_id,
+        code: "db_error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   return async (req, ctx, next) => {
     if (skip?.(req, ctx as unknown as { env: Record<string, unknown>; state: Record<string, unknown> })) {
       return next();
     }
     const secret = String(ctx.env[secretEnvKey] || "").trim();
-    if (!secret) return jsonError({ status: 500, code: "misconfiguration", message: "Server misconfiguration: missing HMAC secret", correlation_id: ctx.correlation_id });
+    if (!secret) {
+      await writeAuthLog({
+        ctx,
+        req,
+        level: "error",
+        action: OBSERVABILITY_ACTIONS.AUTH_HMAC_FAIL,
+        message: "HMAC auth misconfiguration",
+        statusCode: 500,
+      });
+      return jsonError({ status: 500, code: "misconfiguration", message: "Server misconfiguration: missing HMAC secret", correlation_id: ctx.correlation_id });
+    }
 
     const timestamp = req.headers.get("x-oi-timestamp") || "";
     const nonce = req.headers.get("x-oi-nonce") || "";
     const signature = req.headers.get("x-oi-signature") || "";
 
     if (!timestamp || !nonce || !signature) {
+      await writeAuthLog({
+        ctx,
+        req,
+        level: "security",
+        action: OBSERVABILITY_ACTIONS.AUTH_HMAC_FAIL,
+        message: "Missing required HMAC headers",
+        statusCode: 401,
+      });
       return jsonError({ status: 401, code: "unauthorized", message: "Missing required HMAC headers", correlation_id: ctx.correlation_id });
     }
 
     const ts = Number(timestamp || "0");
-    if (!Number.isFinite(ts)) return jsonError({ status: 401, code: "unauthorized", message: "Invalid timestamp", correlation_id: ctx.correlation_id });
+    if (!Number.isFinite(ts)) {
+      await writeAuthLog({
+        ctx,
+        req,
+        level: "security",
+        action: OBSERVABILITY_ACTIONS.AUTH_HMAC_FAIL,
+        message: "Invalid HMAC timestamp",
+        statusCode: 401,
+      });
+      return jsonError({ status: 401, code: "unauthorized", message: "Invalid timestamp", correlation_id: ctx.correlation_id });
+    }
     const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - ts) > toleranceSeconds) return jsonError({ status: 401, code: "unauthorized", message: "Timestamp outside tolerance window", correlation_id: ctx.correlation_id });
+    if (Math.abs(now - ts) > toleranceSeconds) {
+      await writeAuthLog({
+        ctx,
+        req,
+        level: "security",
+        action: OBSERVABILITY_ACTIONS.AUTH_HMAC_FAIL,
+        message: "Timestamp outside tolerance window",
+        statusCode: 401,
+      });
+      return jsonError({ status: 401, code: "unauthorized", message: "Timestamp outside tolerance window", correlation_id: ctx.correlation_id });
+    }
 
     const method = req.method.toUpperCase();
     const bodyText = method === "GET" || method === "HEAD" ? "" : (await req.clone().text());
@@ -78,6 +171,14 @@ export function withAuthHmac(opts: {
         expected = await hmacBase64(secret, payload);
       }
       if (!timingSafeEqual(expected, signature)) {
+         await writeAuthLog({
+          ctx,
+          req,
+          level: "security",
+          action: OBSERVABILITY_ACTIONS.AUTH_HMAC_FAIL,
+          message: "Invalid HMAC signature",
+          statusCode: 401,
+         });
          return jsonError({ status: 401, code: "unauthorized", message: "Invalid signature", correlation_id: ctx.correlation_id });
       }
     }
@@ -89,6 +190,14 @@ export function withAuthHmac(opts: {
       await db.prepare(CREATE).run();
       const existing = await db.prepare("SELECT nonce FROM api_nonces WHERE nonce = ?").bind(nonce).first();
       if (existing) {
+        await writeAuthLog({
+          ctx,
+          req,
+          level: "security",
+          action: OBSERVABILITY_ACTIONS.AUTH_HMAC_FAIL,
+          message: "HMAC nonce replay detected",
+          statusCode: 403,
+        });
         return jsonError({ status: 403, code: "forbidden", message: "Nonce replay detected", correlation_id: ctx.correlation_id });
       }
       await db.prepare("INSERT INTO api_nonces (nonce, created_at) VALUES (?, ?)").bind(nonce, new Date().toISOString()).run();
@@ -97,6 +206,15 @@ export function withAuthHmac(opts: {
         await db.prepare("DELETE FROM api_nonces WHERE created_at < datetime('now', '-10 minutes')").run();
       }
     }
+
+    await writeAuthLog({
+      ctx,
+      req,
+      level: "security",
+      action: OBSERVABILITY_ACTIONS.AUTH_HMAC_OK,
+      message: "HMAC auth passed",
+      statusCode: 200,
+    });
 
     return next();
   };

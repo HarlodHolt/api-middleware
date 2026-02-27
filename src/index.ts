@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./actions";
 export * from "./pipeline";
 export * from "./helpers";
 export * from "./request-context";

@@ -40,3 +40,18 @@ app.use("/secure/*", withHonoPipeline([
    withAuthHmac({ secretEnvKey: "HMAC_SHARED_SECRET" })
 ]));
 ```
+
+## Observability controls
+- `LOG_SAMPLE_RATE_INFO` (default `0.2`)
+- `LOG_SAMPLE_RATE_DEBUG` (default `0`)
+- `LOG_ALWAYS_LOG_SLOW_MS` (default `1500`)
+
+Sampling is deterministic by `request_id` hash. Warn/error/security logs and slow requests are always logged.
+
+## Standard action taxonomy
+Use the exported `OBSERVABILITY_ACTIONS` constants:
+- `http.request`, `http.response`, `http.error`
+- `auth.hmac.ok`, `auth.hmac.fail`
+- `rate_limit.ok`, `rate_limit.block`
+- `db.query`, `db.error`
+- `admin.audit`
