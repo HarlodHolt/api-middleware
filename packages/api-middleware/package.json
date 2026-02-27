@@ -1,0 +1,16 @@
+{
+  "name": "api-middleware",
+  "version": "1.0.0",
+  "description": "Shared API middleware for Olive & Ivory Apps/Workers",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.12.3"
+  }
+}
