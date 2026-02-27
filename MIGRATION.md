@@ -1,52 +1,51 @@
-# API Middleware Migration
+# MIGRATION
 
-Use this package for new API routes to keep request IDs, errors, logging, and rate limiting consistent.
+## 1) Remove duplicated middleware in each app
 
-## Next.js route handler
+Delete local request-id/error/logging wrappers in main/admin/api repos and use this package pipeline.
 
-1. Wrap handler with `withApiLogging` (or `withNextJsPipeline` directly).
-2. Keep business logic in handler body only.
-3. Throw errors or return `Response`; middleware will normalize logging + error shape.
+## 2) Install dependency pinned to release tag
+
+```bash
+npm install git+ssh://git@github.com/HarlodHolt/api-middleware.git#v0.1.0
+```
+
+## 3) Next.js route handler usage
 
 ```ts
-import { withNextJsPipeline, withRequestContext, withJsonBody, withLogging, withErrorHandling } from "api-middleware";
+import { nextjs, withErrorHandling, withJsonBody, withLogging, withRequestContext } from "api-middleware";
 
-export const POST = withNextJsPipeline(
-  [withRequestContext(), withJsonBody(), withLogging({ actionPrefix: "example.route" }), withErrorHandling()],
-  async (request, _ctx, mwCtx) => {
-    return Response.json({ ok: true, correlation_id: mwCtx.correlation_id });
+export const POST = nextjs(
+  [withRequestContext(), withJsonBody(), withLogging(), withErrorHandling()],
+  async (request, _appContext, middlewareContext) => {
+    return Response.json({ ok: true, correlation_id: middlewareContext.correlation_id });
   }
 );
 ```
 
-## Hono / Cloudflare Worker
-
-1. Add pipeline once at app-level with `withHonoPipeline`.
-2. Keep `withErrorHandling()` last in middleware array.
-3. Remove duplicate local context/error/logging middleware.
+## 4) Cloudflare Worker usage
 
 ```ts
-app.use("*", withHonoPipeline([
-  withRequestContext(),
-  withRateLimit({ windowSeconds: 60, limit: 60 }),
-  withJsonBody(),
-  withLogging({ actionPrefix: "api.route" }),
-  withErrorHandling(),
-]));
+import { cloudflare, withErrorHandling, withLogging, withRequestContext } from "api-middleware";
+
+export default {
+  fetch: cloudflare([withRequestContext(), withLogging(), withErrorHandling()], async (_request, _env, context) => {
+    return Response.json({ ok: true, request_id: context.request_id });
+  })
+};
 ```
 
-## Standard response error shape
+## 5) Hono usage
 
-All middleware-generated errors return:
+```ts
+import { Hono } from "hono";
+import { hono, withErrorHandling, withLogging, withRequestContext } from "api-middleware";
 
-```json
-{
-  "ok": false,
-  "error": {
-    "code": "string",
-    "message": "string",
-    "correlation_id": "string"
-  },
-  "details": {}
-}
+const app = new Hono();
+app.use("*", hono([withRequestContext(), withLogging(), withErrorHandling()]));
 ```
+
+## 6) Correlation propagation + Log Explorer
+
+- Client/UI should display `x-correlation-id` (or error body `error.correlation_id`) in failure states.
+- Logs endpoint should preserve the canonical error shape and headers so admin diagnostics remain consistent.

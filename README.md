@@ -1,57 +1,58 @@
-# API Middleware Update
-We have unified the API middleware processing under `/packages/api-middleware`. This provides a consistent pipeline for Cloudflare Workers (Hono) and Next.js Route Handlers.
+# api-middleware
 
-## How to add a new API route using the middleware
+Edge-safe TypeScript middleware package for Next.js Route Handlers, Cloudflare Workers/Pages, and Hono.
 
-### Next.js
-In Next.js, use `withApiLogging` from `@/lib/api-logging` which wraps the shared `withNextJsPipeline`:
+## Contracts
 
-```ts
-import { NextRequest, NextResponse } from "next/server";
-import { withApiLogging } from "@/lib/api-logging";
+- Request IDs: inbound `x-correlation-id` is preserved when present; otherwise generated.
+- Response headers: every pipeline response includes `x-correlation-id` and `x-request-id`.
+- Error JSON shape:
 
-async function POSTHandler(req: NextRequest, ctx: any) {
-  // context is available natively inline.
-  // req body is pre-parsed in mwState or available normally.
-  return NextResponse.json({ success: true });
-}
-
-export const POST = withApiLogging(POSTHandler, { actionPrefix: "my.new.route" });
+```json
+{ "ok": false, "error": { "code": "string", "message": "string", "correlation_id": "string" }, "details": {} }
 ```
 
-### Cloudflare (Hono)
-The pipeline is already registered globally in `src/index.ts`:
+- Status mapping:
+  - validation: 400
+  - auth/hmac: 401 or 403
+  - constraint conflict: 409
+  - rate limit: 429 + `Retry-After`
+  - unknown: 500
 
-```ts
-// src/index.ts
-...
-app.use("*", withHonoPipeline([
-  withRequestContext(),
-  withErrorHandling(),
-  withLogging(),
-  withRateLimit({ windowSeconds: 60, limit: 60 })
-]));
+- Log schema (`LogEvent`):
+  - `level`, `action`, `message`, `correlation_id`, `request_id`, `route`, `method`, `status`, `duration_ms`, `ip`, `user_agent`, `user_id?`, `metadata?`
+  - sensitive values are redacted and metadata is truncated by default.
+
+## Public API
+
+- `compose()`
+- middleware:
+  - `withRequestContext`, `withEnvValidation`, `withCors`, `withJsonBody`
+  - `withAuthHmac`, `withRateLimit`, `withLogging`, `withErrorHandling`
+- adapters:
+  - `nextjs`, `cloudflare`, `hono`
+- helpers:
+  - `jsonOk`, `jsonError`, `noContent`, `redirect`
+- sinks:
+  - `ConsoleSink`, `D1EventLogsSink`
+- types:
+  - `AppEnv`, `RequestContext`, `ApiError`, `ApiResult`, `LogEvent`
+  - `RateLimitConfig`, `AuthHmacConfig`, `PaginationResult`
+
+## Install (pin to release tag)
+
+```bash
+npm install git+ssh://git@github.com/HarlodHolt/api-middleware.git#v0.1.0
 ```
-Any standard `.get()` or `.post()` you add to Hono will automatically be covered by the context, auth, logging, and error-handling pipelines securely.
 
-To strictly require HMAC on a new sub-router, just use:
-```ts
-app.use("/secure/*", withHonoPipeline([
-   withAuthHmac({ secretEnvKey: "HMAC_SHARED_SECRET" })
-]));
-```
+## Scripts
 
-## Observability controls
-- `LOG_SAMPLE_RATE_INFO` (default `0.2`)
-- `LOG_SAMPLE_RATE_DEBUG` (default `0`)
-- `LOG_ALWAYS_LOG_SLOW_MS` (default `1500`)
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- `npm run guard:runtime`
 
-Sampling is deterministic by `request_id` hash. Warn/error/security logs and slow requests are always logged.
+## Examples
 
-## Standard action taxonomy
-Use the exported `OBSERVABILITY_ACTIONS` constants:
-- `http.request`, `http.response`, `http.error`
-- `auth.hmac.ok`, `auth.hmac.fail`
-- `rate_limit.ok`, `rate_limit.block`
-- `db.query`, `db.error`
-- `admin.audit`
+See [examples/nextjs-route](./examples/nextjs-route), [examples/cloudflare-worker](./examples/cloudflare-worker), and [examples/hono](./examples/hono).

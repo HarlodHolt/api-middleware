@@ -1,9 +1,10 @@
 {
   "name": "api-middleware",
-  "version": "1.0.0",
-  "description": "Shared API middleware for Olive & Ivory Apps/Workers",
+  "version": "0.1.0",
+  "description": "Edge-safe middleware pipeline for Next.js, Cloudflare Workers/Pages, and Hono",
   "type": "module",
   "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
@@ -11,24 +12,25 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "package.json",
-    "README.md",
-    "MIGRATION.md"
-  ],
-  "devDependencies": {
-    "@types/node": "^20.19.13",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
-  },
+  "files": ["dist", "README.md", "MIGRATION.md", "package.json"],
+  "sideEffects": false,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup src/index.ts --format esm --dts --sourcemap --clean",
     "prepare": "npm run build",
+    "lint": "biome check .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test ./tests/api-middleware.test.ts"
+    "test": "node --import tsx --test ./tests/*.test.ts",
+    "guard:runtime": "node --import tsx scripts/check-runtime-imports.ts",
+    "pack:check": "npm pack --dry-run"
   },
   "dependencies": {
     "hono": "^4.12.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^20.19.13",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   }
 }

@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: packages/api-middleware/package-lock.json
+      - name: Install
+        run: npm ci
+        working-directory: packages/api-middleware
+      - name: Lint
+        run: npm run lint
+        working-directory: packages/api-middleware
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: packages/api-middleware
+      - name: Test
+        run: npm test
+        working-directory: packages/api-middleware
+      - name: Build
+        run: npm run build
+        working-directory: packages/api-middleware
