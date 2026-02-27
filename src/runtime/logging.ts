@@ -74,25 +74,25 @@ function buildInsertValues(event: LogEvent) {
   // user_email, user_id, entity_type, entity_id, message, data_json,
   // request_id, event_type, ip_address, duration_ms, method, path, status_code, metadata
   return [
-    crypto.randomUUID(),           // id
-    new Date().toISOString(),      // created_at
-    event.level,                   // level
-    "api",                         // source
-    event.action,                  // action
-    event.correlation_id,          // correlation_id
-    event.user_email ?? null,      // user_email — was incorrectly hardcoded null before
-    event.user_id ?? null,         // user_id
-    null,                          // entity_type (not applicable for HTTP logs)
-    null,                          // entity_id
-    event.message,                 // message
+    crypto.randomUUID(), // id
+    new Date().toISOString(), // created_at
+    event.level, // level
+    "api", // source
+    event.action, // action
+    event.correlation_id, // correlation_id
+    event.user_email ?? null, // user_email — was incorrectly hardcoded null before
+    event.user_id ?? null, // user_id
+    null, // entity_type (not applicable for HTTP logs)
+    null, // entity_id
+    event.message, // message
     safeJsonStringify(event.metadata ?? {}), // data_json
-    event.request_id,              // request_id
-    "http",                        // event_type
-    event.ip,                      // ip_address
-    event.duration_ms,             // duration_ms
-    event.method,                  // method
-    event.route,                   // path
-    event.status,                  // status_code
+    event.request_id, // request_id
+    "http", // event_type
+    event.ip, // ip_address
+    event.duration_ms, // duration_ms
+    event.method, // method
+    event.route, // path
+    event.status, // status_code
     safeJsonStringify(event.metadata ?? {}), // metadata
   ];
 }

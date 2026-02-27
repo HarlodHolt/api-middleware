@@ -112,6 +112,7 @@ export function withLogging(options?: { action_prefix?: string; sink?: LogSink }
             ip: context.ip,
             user_agent: context.user_agent,
             user_id: context.user_id || null,
+            user_email: context.user_email || null,
             metadata: {
               action_prefix: options?.action_prefix || null,
               request_json: {

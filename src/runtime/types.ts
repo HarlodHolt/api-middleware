@@ -83,6 +83,7 @@ export interface LogEvent {
   ip: string | null;
   user_agent: string | null;
   user_id?: string | null;
+  user_email?: string | null;
   metadata?: Record<string, unknown>;
 }
 
