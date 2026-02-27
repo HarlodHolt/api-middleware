@@ -1,12 +1,14 @@
 import { MiddlewareFn, MiddlewareContext } from "../types";
 import { runPipeline } from "../pipeline";
+import { resolveRequestIds } from "../request-context";
 
 export function withHonoPipeline(middlewares: MiddlewareFn[]) {
   return async (c: any, next: any) => {
+    const ids = resolveRequestIds(c.req.raw.headers);
     // Populate normalized MW context
     const ctx: MiddlewareContext = {
-      correlation_id: c.get("correlation_id") || c.get("correlationId") || crypto.randomUUID(),
-      request_id: c.get("requestId") || c.req.header("cf-ray") || crypto.randomUUID(),
+      correlation_id: c.get("correlation_id") || c.get("correlationId") || ids.correlationId,
+      request_id: c.get("requestId") || ids.requestId,
       start_ms: Date.now(),
       ip: c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for") || null,
       user_agent: c.req.header("user-agent") || null,
@@ -29,6 +31,10 @@ export function withHonoPipeline(middlewares: MiddlewareFn[]) {
     };
 
     const pipelineResponse = await runPipeline(c.req.raw, ctx, middlewares, finalHandler);
+    if (pipelineResponse) {
+      if (ctx.correlation_id) pipelineResponse.headers.set("x-correlation-id", ctx.correlation_id);
+      if (ctx.request_id) pipelineResponse.headers.set("x-request-id", ctx.request_id);
+    }
 
     if (pipelineResponse && pipelineResponse !== c.res) {
        c.res = pipelineResponse;
