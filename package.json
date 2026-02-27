@@ -1,6 +1,6 @@
 {
   "name": "api-middleware",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Edge-safe middleware pipeline for Next.js, Cloudflare Workers/Pages, and Hono",
   "type": "module",
   "main": "./dist/index.js",

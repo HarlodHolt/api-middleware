@@ -7,7 +7,7 @@ Delete local request-id/error/logging wrappers in main/admin/api repos and use t
 ## 2) Install dependency pinned to release tag
 
 ```bash
-npm install git+ssh://git@github.com/HarlodHolt/api-middleware.git#v0.1.0
+npm install git+https://github.com/HarlodHolt/api-middleware.git#v0.1.1
 ```
 
 ## 3) Next.js route handler usage

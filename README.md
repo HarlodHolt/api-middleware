@@ -42,7 +42,7 @@ Edge-safe TypeScript middleware package for Next.js Route Handlers, Cloudflare W
 ## Install (pin to release tag)
 
 ```bash
-npm install git+ssh://git@github.com/HarlodHolt/api-middleware.git#v0.1.0
+npm install git+https://github.com/HarlodHolt/api-middleware.git#v0.1.1
 ```
 
 ## Scripts
