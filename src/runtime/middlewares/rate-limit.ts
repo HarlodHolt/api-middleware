@@ -4,6 +4,10 @@ import type { D1DatabaseLike, MiddlewareFunction, RateLimitConfig } from "../typ
 
 const memoryRateLimitStore = new Map<string, number>();
 
+// Per-isolate cache of tables that have already been created this lifetime.
+// Eliminates the DDL round-trip on every hot-path request after the first.
+const d1TablesEnsured = new Set<string>();
+
 export function getWindowStartSeconds(nowMilliseconds: number, windowSeconds: number): number {
   const nowSeconds = Math.floor(nowMilliseconds / 1000);
   return Math.floor(nowSeconds / windowSeconds) * windowSeconds;
@@ -18,6 +22,9 @@ export function getRetryAfterSeconds(
 }
 
 async function ensureD1RateLimitTable(database: D1DatabaseLike, tableName: string): Promise<void> {
+  // Skip the DDL if this isolate has already created the table this lifetime.
+  if (d1TablesEnsured.has(tableName)) return;
+
   await database
     .prepare(
       `CREATE TABLE IF NOT EXISTS ${tableName} (
@@ -28,6 +35,8 @@ async function ensureD1RateLimitTable(database: D1DatabaseLike, tableName: strin
       )`,
     )
     .run();
+
+  d1TablesEnsured.add(tableName);
 }
 
 async function incrementD1Counter(
