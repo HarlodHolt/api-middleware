@@ -133,6 +133,39 @@ export function withAuthHmac(configuration: AuthHmacConfig): MiddlewareFunction 
     }
 
     context.state.auth_action = OBSERVABILITY_ACTIONS.AUTH_HMAC_OK;
+
+    // Nonce replay protection: insert the nonce; a UNIQUE constraint violation means replay.
+    // Enabled by default when a DB binding is present; opt out via replay_protection: false.
+    if (configuration.replay_protection !== false && context.env.DB) {
+      const db = context.env.DB;
+      try {
+        await db
+          .prepare("INSERT INTO api_nonces (nonce, created_at) VALUES (?, datetime('now'))")
+          .bind(nonce)
+          .run();
+      } catch {
+        // UNIQUE constraint violation = nonce already used within tolerance window.
+        context.state.auth_action = OBSERVABILITY_ACTIONS.AUTH_HMAC_FAIL;
+        return jsonError(
+          {
+            status: 401,
+            code: "unauthorized",
+            message: "Request replay detected",
+          },
+          context,
+        );
+      }
+
+      // Purge expired nonces (older than tolerance window) on every request.
+      // Fire-and-forget; a failure here is non-fatal.
+      db.prepare(
+        "DELETE FROM api_nonces WHERE created_at < datetime('now', ? || ' seconds')",
+      )
+        .bind(`-${toleranceSeconds}`)
+        .run()
+        .catch(() => undefined);
+    }
+
     return next();
   };
 }
