@@ -78,7 +78,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Login, collections, gifts, and orders pages verified working
   - **Priority:** high
 
-- [ ] **Remove deprecated `/api/admin/collections/[id]/ai-assist` route alias**
+- [x] **Remove deprecated `/api/admin/collections/[id]/ai-assist` route alias**
   - **Repo(s):** admin_olive_and_ivory_gifts, olive_and_ivory_api
   - **Area:** AI Assist
   - **Why:** The endpoint is a backward-compat wrapper with a TODO to remove once all clients are on `/ai-suggest`. Leaving it active means two code paths to maintain.
@@ -88,7 +88,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Corresponding alias removed from API worker if present
   - **Priority:** high
 
-- [ ] **Fix admin app page metadata (title / description)**
+- [x] **Fix admin app page metadata (title / description)**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** DX
   - **Why:** Layout still has Next.js scaffold defaults: `title: "Create Next App"`. This leaks in browser tabs, bookmarks, and SEO crawlers.
@@ -97,6 +97,28 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Favicon updated if still using Next.js default
   - **Priority:** high
   - **Notes:** `src/app/layout.tsx` line ~18
+
+- [ ] **Fix Hero Preview blank on gift edit page**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Images / UX
+  - **Why:** Primary media exists but Hero Preview stays blank/grey — root cause is initialMedia prop not syncing into GiftEditorForm mediaItems state after async load
+  - **Acceptance:**
+    - Hero preview renders when primary media exists
+    - Fallback empty state shown when no media
+    - getPrimaryPreviewKey handles empty variants_json without returning null
+    - onError handler shows empty state on 404/403
+  - **Priority:** high
+
+- [ ] **Refactor Media panel to compact row layout**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Images / UX
+  - **Why:** Large static 4:5 preview card wastes ~350px of vertical space even when no editing is happening; duplicates the hero preview already shown in the right-side panel
+  - **Acceptance:**
+    - Large static preview card removed from GiftMediaEditor
+    - Compact row list with small thumbnails (max 80px height) replaces it
+    - Inline expanded edit row appears on item activation with alt text, focal, crop controls
+    - Add image button always visible; keyboard accessible expand/collapse
+  - **Priority:** medium
 
 ### Storefront
 
@@ -110,7 +132,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Rate limited at middleware level
   - **Priority:** high
 
-- [ ] **Remove geocode debug logging from production**
+- [x] **Remove geocode debug logging from production**
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** DX / Observability
   - **Why:** `console.log("[geocode-debug]", ...)` emits to Cloudflare log streams on every geocode call, polluting production logs.
@@ -168,7 +190,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Aggregate token usage visible in admin `/logs` metrics or a dedicated view
   - **Priority:** medium
 
-- [ ] **Implement UI partial apply / field-level accept for AI suggestions**
+- [x] **Implement UI partial apply / field-level accept for AI suggestions**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** AI Assist / UX
   - **Why:** Currently an admin must accept or reject an entire AI suggest response. They cannot accept the generated name but reject the description, requiring a manual re-edit.
@@ -232,7 +254,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ### Admin
 
-- [ ] **Clean up `_page_backup.tsx`**
+- [x] **Clean up `_page_backup.tsx`**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** DX
   - **Why:** A backup page file exists at the app root. It should not be committed to the repo.
@@ -374,7 +396,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Token lifecycle documented in code
   - **Priority:** low
 
-- [ ] **Remove `BRAND_DEBUG` flag from `Header.tsx`**
+- [x] **Remove `BRAND_DEBUG` flag from `Header.tsx`**
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** DX
   - **Why:** A debug flag for layout outlines is hardcoded to `false` but still present in production code. Dead code should be removed.
