@@ -24,10 +24,9 @@ Severity levels: **Critical** / **High** / **Medium** / **Low**
 **Risk:** `hasSuspiciousInput()` only checks for `<script>` and `javascript:` substrings. This is easily bypassed with variants like `<img onerror=...>`, `<svg onload=...>`, or HTML-encoded payloads.
 **Recommendation:** Use a proper HTML sanitisation library (e.g., DOMPurify on the client, or a well-tested server-side sanitiser). For data stored in D1 and rendered in the frontend, ensure the Next.js frontend always uses React's JSX (which auto-escapes), and never uses `dangerouslySetInnerHTML` with unsanitised API data.
 
-### HMAC Nonce Replay Prevention Unverified
+### HMAC Nonce Replay Prevention — RESOLVED (v0.1.2)
 **Repos:** `olive_and_ivory_api`, `api-middleware`
-**Risk:** The `api_nonces` table exists in the schema, but there is no confirmed code path that inserts nonces on receipt and checks for duplicates. Without active nonce validation, a captured valid HMAC request could be replayed within the timestamp tolerance window (default: 300 seconds).
-**Recommendation:** Confirm `withAuthHmac` in `api-middleware` v0.1.1 performs nonce insert + uniqueness check. If not, implement it. Nonces should be stored with a TTL equal to the timestamp tolerance.
+**Status:** Implemented in api-middleware v0.1.2. `withAuthHmac` now inserts the nonce into `api_nonces` (PRIMARY KEY acts as atomic uniqueness guard). A UNIQUE constraint violation is returned as 401. Expired nonces (older than tolerance window) are purged per-request. Opt-out via `replay_protection: false` in AuthHmacConfig.
 
 ### OpenAI Prompt Injection
 **Repos:** `olive_and_ivory_api`, `admin_olive_and_ivory_gifts`

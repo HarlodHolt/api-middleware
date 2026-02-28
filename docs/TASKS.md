@@ -1,6 +1,6 @@
 # Outstanding Tasks & Improvements
 
-> Last updated: 2026-02-28
+> Last updated: 2026-03-01
 > Owner: repo agent / Yuri
 > Scope: Task backlog for the Olive & Ivory Gifts project
 
@@ -25,7 +25,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ### API Worker
 
-- [ ] **Complete `collection_items` → `gift_items` migration cutover**
+- [x] **Complete `collection_items` → `gift_items` migration cutover**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Infra / DB
   - **Why:** Legacy `collection_items` read/sync is still active behind a `TODO(gifts-cutover)` comment, creating dual code paths that will diverge.
@@ -36,7 +36,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Notes:** `src/routes/coreRoutes.ts` — search `TODO(gifts-cutover)`
 
-- [ ] **Verify HMAC nonce uniqueness enforcement**
+- [x] **Verify HMAC nonce uniqueness enforcement**
   - **Repo(s):** olive_and_ivory_api, api-middleware
   - **Area:** Security
   - **Why:** The `api_nonces` table exists for replay prevention but there is no confirmed code path that inserts nonces on receipt and validates uniqueness. Without this, captured requests can be replayed within the 300s tolerance window.
