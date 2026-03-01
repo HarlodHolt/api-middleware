@@ -80,13 +80,29 @@ erDiagram
     TEXT id PK
     TEXT name
     TEXT sku
+    TEXT barcode
     TEXT description
+    TEXT tags
+    TEXT status
+    INTEGER is_active
     INTEGER price_cents
     INTEGER cost_cents
     INTEGER stock_quantity
     INTEGER low_stock_threshold
-    TEXT image_keys
-    TEXT status
+    INTEGER pack_qty
+    REAL unit_size
+    TEXT unit_type
+    REAL unit_price
+    INTEGER weight_grams
+    TEXT dimensions
+    TEXT location
+    TEXT store_name
+    TEXT supplier_url
+    TEXT notes
+    TEXT image_key
+    TEXT image_key_large
+    TEXT image_key_medium
+    TEXT image_key_thumb
     TEXT created_at
     TEXT updated_at
   }
@@ -364,7 +380,11 @@ independent `sort_order`. Supersedes the legacy `collection_id` FK on `gifts`.
 ### Gift Components
 
 **`items`** — Physical stock components (e.g. "Bamboo Soap Bar"). `stock_quantity` is the
-live inventory counter. `image_keys` is a JSON array.
+live inventory counter. Image keys are stored as individual columns (`image_key`,
+`image_key_large`, `image_key_medium`, `image_key_thumb`) rather than a JSON array.
+Pack/unit fields (`pack_qty`, `unit_size`, `unit_type`, `unit_price`) describe how the
+item is purchased and how unit cost is calculated. `is_active` mirrors `status = 'active'`
+as an integer flag for legacy query compatibility.
 
 **`gift_items`** — Bill-of-materials: maps a gift to the items it requires and the
 quantity of each. Replaces the legacy `collection_items` table (removed in cutover
