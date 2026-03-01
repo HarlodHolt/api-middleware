@@ -26,8 +26,8 @@
  *   --content     Replacement body (if omitted, reads from stdin)
  */
 
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -91,11 +91,7 @@ const HEADER_RE = /^>\s*Last updated:\s*.+$/m;
  * doc file.  The block sits between the first `# Heading` and the content, or
  * at the very top if no heading is found.
  */
-function ensureHeaderMeta(
-  content: string,
-  scope: string,
-  owner = "repo agent / Yuri"
-): string {
+function ensureHeaderMeta(content: string, scope: string, owner = "repo agent / Yuri"): string {
   const today = new Date().toISOString().slice(0, 10);
   const block = `> Last updated: ${today}\n> Owner: ${owner}\n> Scope: ${scope}\n\n`;
 
@@ -138,10 +134,7 @@ function headingText(line: string): string {
  * higher importance, or lines.length if none found.
  * Returns null when the heading is not found.
  */
-function findHeadingRange(
-  lines: string[],
-  heading: string
-): { start: number; end: number } | null {
+function findHeadingRange(lines: string[], heading: string): { start: number; end: number } | null {
   // Accept bare text ("High Priority") or prefixed ("## High Priority").
   const targetText = headingText(heading);
   const targetLevel = headingLevel(heading) || 2; // default h2
@@ -173,9 +166,7 @@ function findHeadingRange(
 
 function formatTask(task: TaskDef): string {
   const acceptanceLines =
-    task.acceptance.length > 0
-      ? task.acceptance.map((a) => `    - ${a}`).join("\n")
-      : "    - (to be defined)";
+    task.acceptance.length > 0 ? task.acceptance.map((a) => `    - ${a}`).join("\n") : "    - (to be defined)";
 
   const notesPart = task.notes ? `\n  - **Notes:** ${task.notes}` : "";
 
@@ -184,7 +175,7 @@ function formatTask(task: TaskDef): string {
     `  - **Repo(s):** ${task.repos}`,
     `  - **Area:** ${task.area}`,
     `  - **Why:** ${task.why}`,
-    `  - **Acceptance:**`,
+    "  - **Acceptance:**",
     acceptanceLines,
     `  - **Priority:** ${task.priority}${notesPart}`,
   ].join("\n");
@@ -209,10 +200,7 @@ function replaceExistingTask(content: string, task: TaskDef): string {
   const escaped = task.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // Match the task item: from the checklist line to the next blank line
   // (or next checklist item or heading).
-  const taskRe = new RegExp(
-    `(- \\[[ x]\\] \\*\\*${escaped}\\*\\*[\\s\\S]*?)(?=\\n\\n- \\[|\\n\\n##|\\n\\n###|$)`,
-    "m"
-  );
+  const taskRe = new RegExp(`(- \\[[ x]\\] \\*\\*${escaped}\\*\\*[\\s\\S]*?)(?=\\n\\n- \\[|\\n\\n##|\\n\\n###|$)`, "m");
   return content.replace(taskRe, formatTask(task));
 }
 
@@ -253,10 +241,7 @@ function insertOrUpdateTask(content: string, task: TaskDef): string {
     const sectionHeading = `### ${task.section}`;
     // Search only within the priority block.
     const blockLines = lines.slice(priorityRange.start, priorityRange.end);
-    const sectionIdx = blockLines.findIndex(
-      (l) =>
-        headingLevel(l) === 3 && headingText(l) === task.section
-    );
+    const sectionIdx = blockLines.findIndex((l) => headingLevel(l) === 3 && headingText(l) === task.section);
 
     if (sectionIdx !== -1) {
       // Section exists — find its end within the block.
@@ -303,18 +288,13 @@ function findTaskInsertPoint(lines: string[], from: number, to: number): number 
 // update-doc command
 // ---------------------------------------------------------------------------
 
-function updateDocSection(
-  filePath: string,
-  section: string,
-  newBody: string
-): void {
-  let content = readDoc(filePath);
+function updateDocSection(filePath: string, section: string, newBody: string): void {
+  const content = readDoc(filePath);
   const lines = content.split("\n");
 
   // Normalise heading search: allow with or without # prefix.
   const targetLevel = headingLevel(section) || 2;
-  const fullHeading =
-    headingLevel(section) > 0 ? section : `${"#".repeat(targetLevel)} ${section}`;
+  const fullHeading = headingLevel(section) > 0 ? section : `${"#".repeat(targetLevel)} ${section}`;
 
   const range = findHeadingRange(lines, fullHeading);
   if (!range) {
@@ -326,14 +306,7 @@ function updateDocSection(
   const afterLines = lines.slice(range.end);
   const bodyLines = newBody.trimEnd().split("\n");
 
-  const updated = [
-    ...lines.slice(0, range.start),
-    headingLine,
-    "",
-    ...bodyLines,
-    "",
-    ...afterLines,
-  ].join("\n");
+  const updated = [...lines.slice(0, range.start), headingLine, "", ...bodyLines, "", ...afterLines].join("\n");
 
   writeDoc(filePath, updateHeaderDate(updated));
   console.log(`  ✓  Updated section "${section}" in ${filePath}`);
@@ -351,9 +324,7 @@ function parseArgs(argv: string[]): Record<string, string | string[]> {
       const value = argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[++i] : "true";
       const existing = result[key];
       if (existing !== undefined) {
-        result[key] = Array.isArray(existing)
-          ? [...existing, value]
-          : [existing as string, value];
+        result[key] = Array.isArray(existing) ? [...existing, value] : [existing as string, value];
       } else {
         result[key] = value;
       }
@@ -388,7 +359,7 @@ function main(): void {
       const why = str(args.why);
       const acceptance = arr(args.acceptance);
       const notes = str(args.notes) || undefined;
-      const priority = (str(args.priority, "medium") as TaskDef["priority"]);
+      const priority = str(args.priority, "medium") as TaskDef["priority"];
       const section = str(args.section) || undefined;
 
       if (!title || !repos || !area || !why) {

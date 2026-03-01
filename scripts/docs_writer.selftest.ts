@@ -24,10 +24,7 @@ function headingText(line: string): string {
   return line.replace(/^#+\s*/, "").trim();
 }
 
-function findHeadingRange(
-  lines: string[],
-  heading: string
-): { start: number; end: number } | null {
+function findHeadingRange(lines: string[], heading: string): { start: number; end: number } | null {
   const targetText = headingText(heading);
   const targetLevel = headingLevel(heading) || 2;
   let start = -1;
@@ -77,20 +74,23 @@ function taskExists(content: string, title: string): boolean {
 }
 
 function formatTask(task: {
-  title: string; repos: string; area: string; why: string;
-  acceptance: string[]; notes?: string; priority: string;
+  title: string;
+  repos: string;
+  area: string;
+  why: string;
+  acceptance: string[];
+  notes?: string;
+  priority: string;
 }): string {
   const acceptanceLines =
-    task.acceptance.length > 0
-      ? task.acceptance.map((a) => `    - ${a}`).join("\n")
-      : "    - (to be defined)";
+    task.acceptance.length > 0 ? task.acceptance.map((a) => `    - ${a}`).join("\n") : "    - (to be defined)";
   const notesPart = task.notes ? `\n  - **Notes:** ${task.notes}` : "";
   return [
     `- [ ] **${task.title}**`,
     `  - **Repo(s):** ${task.repos}`,
     `  - **Area:** ${task.area}`,
     `  - **Why:** ${task.why}`,
-    `  - **Acceptance:**`,
+    "  - **Acceptance:**",
     acceptanceLines,
     `  - **Priority:** ${task.priority}${notesPart}`,
   ].join("\n");
@@ -139,8 +139,8 @@ test("findHeadingRange: finds h2 by text", () => {
   const lines = ["# Doc", "## Alpha", "content", "## Beta", "more"];
   const r = findHeadingRange(lines, "## Alpha");
   assert(r !== null, "range should not be null");
-  assert(r!.start === 1, `start should be 1, got ${r!.start}`);
-  assert(r!.end === 3, `end should be 3, got ${r!.end}`);
+  assert(r?.start === 1, `start should be 1, got ${r?.start}`);
+  assert(r?.end === 3, `end should be 3, got ${r?.end}`);
 });
 
 test("findHeadingRange: returns null for missing heading", () => {
@@ -152,20 +152,20 @@ test("findHeadingRange: returns null for missing heading", () => {
 test("findHeadingRange: section ends at same-level heading", () => {
   const lines = ["## A", "aaa", "### A.1", "detail", "## B", "bbb"];
   const r = findHeadingRange(lines, "## A");
-  assert(r!.end === 4, `end should be 4, got ${r!.end}`);
+  assert(r?.end === 4, `end should be 4, got ${r?.end}`);
 });
 
 test("findHeadingRange: range extends to EOF when no next heading", () => {
   const lines = ["## Only", "content line 1", "content line 2"];
   const r = findHeadingRange(lines, "## Only");
-  assert(r!.end === 3, `end should be 3, got ${r!.end}`);
+  assert(r?.end === 3, `end should be 3, got ${r?.end}`);
 });
 
 test("findHeadingRange: h3 sub-heading inside h2 block", () => {
   const lines = ["## High Priority", "", "### Admin", "- [ ] **task**", "### API", "stuff"];
   const r = findHeadingRange(lines, "### Admin");
-  assert(r!.start === 2, `start should be 2, got ${r!.start}`);
-  assert(r!.end === 4, `end should be 4, got ${r!.end}`);
+  assert(r?.start === 2, `start should be 2, got ${r?.start}`);
+  assert(r?.end === 4, `end should be 4, got ${r?.end}`);
 });
 
 // ---------------------------------------------------------------------------

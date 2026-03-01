@@ -139,10 +139,7 @@ export function withAuthHmac(configuration: AuthHmacConfig): MiddlewareFunction 
     if (configuration.replay_protection !== false && context.env.DB) {
       const db = context.env.DB;
       try {
-        await db
-          .prepare("INSERT INTO api_nonces (nonce, created_at) VALUES (?, datetime('now'))")
-          .bind(nonce)
-          .run();
+        await db.prepare("INSERT INTO api_nonces (nonce, created_at) VALUES (?, datetime('now'))").bind(nonce).run();
       } catch {
         // UNIQUE constraint violation = nonce already used within tolerance window.
         context.state.auth_action = OBSERVABILITY_ACTIONS.AUTH_HMAC_FAIL;
@@ -158,9 +155,7 @@ export function withAuthHmac(configuration: AuthHmacConfig): MiddlewareFunction 
 
       // Purge expired nonces (older than tolerance window) on every request.
       // Fire-and-forget; a failure here is non-fatal.
-      db.prepare(
-        "DELETE FROM api_nonces WHERE created_at < datetime('now', ? || ' seconds')",
-      )
+      db.prepare("DELETE FROM api_nonces WHERE created_at < datetime('now', ? || ' seconds')")
         .bind(`-${toleranceSeconds}`)
         .run()
         .catch(() => undefined);
