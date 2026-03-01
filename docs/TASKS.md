@@ -25,16 +25,16 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ### API Worker
 
-- [x] **Complete `collection_items` → `gift_items` migration cutover**
+- [x] **Complete `collection_items` → `gift_inventory_items` migration cutover**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Infra / DB
-  - **Why:** Legacy `collection_items` read/sync is still active behind a `TODO(gifts-cutover)` comment, creating dual code paths that will diverge.
+  - **Why:** Legacy `collection_items` read/sync was still active behind a `TODO(gifts-cutover)` comment, creating dual code paths.
   - **Acceptance:**
-    - All consumers identified and migrated to read `gift_items`
+    - All consumers migrated to read `gift_inventory_items` (FK: `inventory_id` → `inventory_items.id`)
     - Legacy `collection_items` sync code removed from `coreRoutes.ts`
     - Migration smoke-tested against production D1
   - **Priority:** high
-  - **Notes:** `src/routes/coreRoutes.ts` — search `TODO(gifts-cutover)`
+  - **Notes:** Actual join table is `gift_inventory_items`, not `gift_items`. Item entity table is `inventory_items`, not `items`.
 
 - [x] **Verify HMAC nonce uniqueness enforcement**
   - **Repo(s):** olive_and_ivory_api, api-middleware

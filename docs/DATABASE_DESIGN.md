@@ -11,7 +11,7 @@ via inline `CREATE TABLE IF NOT EXISTS` guards in `coreRoutes.ts` on first use.
 | Domain | Tables |
 |---|---|
 | **Catalogue** | `collections`, `gifts`, `collection_gifts` |
-| **Gift Components** | `gift_items`, `gift_media`, `items`, `inventory_adjustments` |
+| **Gift Components** | `gift_inventory_items`, `gift_media`, `inventory_items`, `inventory_adjustments` |
 | **Variants (legacy)** | `collection_variants`, `collection_variant_items` |
 | **Storefront** | `hero_slides`, `featured_collections`, `newsletter_signups`, `settings`, `delivery_zones` |
 | **Commerce** | `orders`, `order_items` |
@@ -76,7 +76,7 @@ erDiagram
 
   %% ── GIFT COMPONENTS ────────────────────────────────────────
 
-  items {
+  inventory_items {
     TEXT id PK
     TEXT name
     TEXT sku
@@ -107,13 +107,13 @@ erDiagram
     TEXT updated_at
   }
 
-  gift_items {
+  gift_inventory_items {
+    TEXT id PK
     TEXT gift_id FK
-    TEXT item_id FK
+    TEXT inventory_id FK
     INTEGER quantity
     INTEGER sort_order
     TEXT created_at
-    TEXT updated_at
   }
 
   gift_media {
@@ -142,6 +142,18 @@ erDiagram
   }
 
   %% ── VARIANTS (LEGACY) ──────────────────────────────────────
+
+  items {
+    TEXT id PK
+    TEXT name
+    TEXT sku
+    TEXT description
+    INTEGER price_cents
+    INTEGER cost_cents
+    INTEGER stock_quantity
+    INTEGER low_stock_threshold
+    TEXT status
+  }
 
   collection_variants {
     TEXT id PK
@@ -348,14 +360,14 @@ erDiagram
 
   collections ||--o{ featured_collections : "featured as"
 
-  gifts ||--o{ gift_items   : "composed of"
-  gift_items }o--|| items   : "references"
+  gifts ||--o{ gift_inventory_items   : "composed of"
+  gift_inventory_items }o--|| inventory_items   : "references"
 
   gifts ||--o{ gift_media   : "has media"
   gifts ||--o{ gift_ai_runs : "AI history"
   gift_ai_runs }o--|| ai_prompts : "uses prompt"
 
-  items ||--o{ inventory_adjustments : "stock log"
+  inventory_items ||--o{ inventory_adjustments : "stock log"
 
   orders ||--o{ order_items : "contains"
   order_items }o--|| collections : "collection ref"
@@ -379,16 +391,16 @@ independent `sort_order`. Supersedes the legacy `collection_id` FK on `gifts`.
 
 ### Gift Components
 
-**`items`** — Physical stock components (e.g. "Bamboo Soap Bar"). `stock_quantity` is the
-live inventory counter. Image keys are stored as individual columns (`image_key`,
-`image_key_large`, `image_key_medium`, `image_key_thumb`) rather than a JSON array.
-Pack/unit fields (`pack_qty`, `unit_size`, `unit_type`, `unit_price`) describe how the
+**`inventory_items`** — Physical stock components (e.g. "Bamboo Soap Bar"). `stock_quantity`
+is the live inventory counter (in packs). Image keys are stored as individual columns
+(`image_key`, `image_key_large`, `image_key_medium`, `image_key_thumb`) rather than a JSON
+array. Pack/unit fields (`pack_qty`, `unit_size`, `unit_type`, `unit_price`) describe how the
 item is purchased and how unit cost is calculated. `is_active` mirrors `status = 'active'`
 as an integer flag for legacy query compatibility.
 
-**`gift_items`** — Bill-of-materials: maps a gift to the items it requires and the
-quantity of each. Replaces the legacy `collection_items` table (removed in cutover
-migration).
+**`gift_inventory_items`** — Bill-of-materials: maps a gift to the inventory items it
+requires (`inventory_id` FK) and the quantity of each. Replaced the legacy
+`collection_items` table. `inventory_id` references `inventory_items.id`.
 
 **`gift_media`** — Multi-image library for a gift. `is_primary = 1` is the hero image.
 `crop_json` and `variants_json` store editor crop/variant metadata.
@@ -398,9 +410,12 @@ is signed (+/-). `resulting_stock_quantity` is the snapshot after the adjustment
 
 ### Variants (Legacy)
 
+**`items`** — Simpler legacy stock table used exclusively by `collection_variant_items`.
+Distinct from `inventory_items`; the two tables are not interchangeable.
+
 **`collection_variants`** / **`collection_variant_items`** — Earlier approach to per-gift
 options (e.g. size variants). Retained for backwards-compatibility but superseded by the
-`gifts` + `gift_items` model.
+`gifts` + `gift_inventory_items` model.
 
 ### Storefront
 
