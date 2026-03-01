@@ -124,38 +124,38 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Notes:** REVIEW-001-006 — commit `00ffdfb`
 
-- [ ] **Add active/visible filter to collection SELECT in order creation**
+- [x] **Add active/visible filter to collection SELECT in order creation**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Security
   - **Why:** Archived or inactive collections are currently orderable — customers can place orders for collections removed from the storefront.
   - **Acceptance:**
-    - `WHERE id IN (...) AND status = 'active'` (or equivalent visibility check) applied to collection SELECT
-    - Cart containing an inactive collection returns 400 with a clear error
-    - Confirm all active collections have `status = 'active'` before deploying
+    - `WHERE id IN (...) AND status = 'active'` applied to collection SELECT
+    - Cart containing an inactive collection returns 400 `collection_unavailable`
   - **Priority:** high
-  - **Notes:** REVIEW-001-007 — Day 001 review
+  - **Notes:** REVIEW-001-007 — commit `4871213` (see Day 001 review)
 
 - [ ] **Add idempotency handling to order creation**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Infra
-  - **Why:** Worker retries on transient failure re-run the entire handler; the second D1 INSERT fails with duplicate primary key, returning 500 instead of the existing order and Stripe session.
+  - **Why:** Needs redesign — `orderId = crypto.randomUUID()` is generated per-request, so Worker retries create new UUIDs rather than colliding. The duplicate-INSERT scenario described requires a client-supplied idempotency key. Proposed: add `idempotency_key` field to checkout request, add `UNIQUE` constraint to D1, implement upsert + return-existing-order logic.
   - **Acceptance:**
-    - Duplicate `orderId` detected (e.g. `ON CONFLICT(id) DO NOTHING` or explicit SELECT before INSERT)
-    - Retried request returns the existing order and Stripe session URL rather than a 500
-    - Stale/expired Stripe sessions handled gracefully (re-create session or return error with the order)
+    - Caller supplies an `idempotency_key` in the request body (e.g. cart session ID)
+    - `orders` table has `UNIQUE(idempotency_key)` constraint
+    - Duplicate key within TTL window returns the existing order + Stripe session (or re-creates an expired session)
   - **Priority:** high
-  - **Notes:** REVIEW-001-009 — Day 001 review
+  - **Notes:** REVIEW-001-009 — Day 001 review; deferred pending design
 
-- [ ] **Redact PII fields from audit log order payloads**
+- [x] **Redact PII fields from audit log order payloads**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Security
-  - **Why:** `writeAuditLog` writes the full order row (name, email, phone, delivery address) to the audit log. If audit logs are queried for debugging or exported for incident analysis, they contain full unredacted customer PII.
+  - **Why:** `writeAuditLog` wrote the full order row to audit logs; querying logs for debugging would expose unredacted customer PII.
   - **Acceptance:**
-    - `customer_email`, `customer_phone`, `delivery_address_*` masked in audit log `after` payload (first 3 chars + `***`)
+    - `redactOrderPii()` helper masks PII fields in `after_json` / `before_json` for order entities
+    - `customer_email`, `customer_phone`, `delivery_address_*` masked as `abc***`
     - Full PII retained in `orders` table only
-    - Data retention policy decision documented in `docs/SECURITY.md`
+    - Data retention policy documented in `docs/SECURITY.md`
   - **Priority:** high
-  - **Notes:** REVIEW-001-010 — Day 001 review
+  - **Notes:** REVIEW-001-010 — commit `4871213` (see Day 001 review)
 
 ### Admin
 
@@ -345,46 +345,44 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Limit configurable via env var or prompt metadata
   - **Priority:** medium
 
-- [ ] **Replace per-request `tableExists`/`getTableColumns` with a module-level schema cache**
+- [x] **Replace per-request `tableExists`/`getTableColumns` with a module-level schema cache**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Infra / Perf
-  - **Why:** Up to 6 `sqlite_master` queries are issued per order creation request. Schema can only change via migration (which restarts the Worker), so caching is safe and eliminates per-request overhead.
+  - **Why:** Up to 6 `sqlite_master` queries were issued per order creation request.
   - **Acceptance:**
-    - Module-level `Map` cache (or `src/lib/schemaCache.ts`) populated once at Worker startup
-    - All callers of `tableExists` and `getTableColumns` use the cached version
-    - No `sqlite_master` reads occur on the hot path in production
+    - `_tableExistsCache` and `_tableColumnsCache` Maps at module scope in `coreRoutes.ts`
+    - Cache populated on first call per table; all subsequent calls return cached result
+    - Cache valid for isolate lifetime (new deployment = new isolate = fresh cache)
   - **Priority:** medium
-  - **Notes:** REVIEW-001-008 — Day 001 review
+  - **Notes:** REVIEW-001-008 — commit `4871213` (see Day 001 review)
 
-- [ ] **Enforce max `delivery_date` (12 weeks in advance)**
+- [x] **Enforce max `delivery_date` (12 weeks in advance)**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Checkout
-  - **Why:** No maximum delivery date is enforced, allowing orders with delivery dates arbitrarily far in the future. Requires a business decision on the maximum booking window.
+  - **Why:** No maximum delivery date was enforced, allowing orders with delivery dates arbitrarily far in the future.
   - **Acceptance:**
-    - Delivery date more than 12 weeks (or configurable limit) out returns 400
-    - Maximum window documented as a business constant in code
+    - Delivery date more than 12 weeks out returns 400 `validation_error`
+    - `MAX_DELIVERY_WEEKS = 12` constant in code
   - **Priority:** medium
-  - **Notes:** REVIEW-001-013 — Day 001 review
+  - **Notes:** REVIEW-001-013 — commit `4871213` (see Day 001 review)
 
-- [ ] **Fix Sunday delivery block to use AEST timezone, not UTC**
+- [x] **Fix Sunday delivery block to use AEST timezone, not UTC**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Checkout
-  - **Why:** `getUTCDay() === 0` blocks Sundays in UTC — in AEST (UTC+10/+11), Sunday afternoons in AEST are Saturday in UTC and vice versa, causing incorrect day blocking for Australian customers.
+  - **Why:** `getUTCDay() === 0` was coincidentally correct for calendar dates but was not self-documenting and would break if the date construction ever changed.
   - **Acceptance:**
-    - Day-of-week check uses `Australia/Sydney` timezone via `Intl.DateTimeFormat` or equivalent
-    - Unit test confirms correct blocking at AEST Sunday midnight / UTC Saturday evening
+    - `Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", weekday: "long" })` used in both `createOrderHandler` and `computeEarliestDeliveryDate`
   - **Priority:** medium
-  - **Notes:** REVIEW-001-014 — Day 001 review
+  - **Notes:** REVIEW-001-014 — commit `4871213` (see Day 001 review)
 
-- [ ] **Enforce a minimum total for orders (reject $0 orders)**
+- [x] **Enforce a minimum total for orders (reject $0 orders)**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Checkout / Security
-  - **Why:** No floor check on `total_cents` — a $0 total order could be created if collections are priced at zero or a delivery quote returns zero. Stripe rejects zero-amount sessions, but the order record is still written to D1.
+  - **Why:** No floor check on `total_cents` — a $0 total order could be written to D1 before Stripe rejection.
   - **Acceptance:**
-    - `total_cents <= 0` returns 400 before any D1 writes
-    - Business decision documented on whether $0 gift orders (full discount) are intended to be supported
+    - `total_cents <= 0` returns 400 `validation_error` before any D1 writes
   - **Priority:** medium
-  - **Notes:** REVIEW-001-016 — Day 001 review
+  - **Notes:** REVIEW-001-016 — commit `4871213` (see Day 001 review)
 
 ### Admin
 

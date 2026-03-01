@@ -479,6 +479,12 @@ The following items were implemented in the same session as the review. All chan
 | REVIEW-001-004 | Max-length enforcement for all string order fields | `ORDER_FIELD_MAX_LENGTHS` constant added; all fields checked in `validateCreateOrderInput`; cart size capped at 20 items |
 | REVIEW-001-005 | order_items batch INSERT wrapped in try/catch | Failure deletes orphan order via compensating DELETE, logs `orders.create.items_failed`, returns 500 `order_items_insert_failed` |
 | REVIEW-001-006 | Log Stripe session creation failures | `warn`-level `orders.stripe.session_failed` event logged with `stripe_status` and `stripe_error` before falling back to manual/pending |
+| REVIEW-001-007 | Active/visible filter on collection SELECT | `AND status = 'active'` added to collection SELECT; error code changed to `collection_unavailable`; collection ID no longer leaked in error message |
+| REVIEW-001-008 | Module-level schema cache | `_tableExistsCache` and `_tableColumnsCache` Maps at module scope; `tableExists` and `getTableColumns` cache on first call, valid for isolate lifetime |
+| REVIEW-001-010 | Redact PII from audit log order payloads | `ORDER_PII_FIELDS` set + `redactOrderPii()` helper; `writeAuditLog` applies redaction to `before_json`/`after_json` for order entities |
+| REVIEW-001-013 | Max delivery_date (12 weeks) | `MAX_DELIVERY_WEEKS = 12` constant; delivery date >12 weeks returns 400 `validation_error` |
+| REVIEW-001-014 | AEST timezone Sunday check | `Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", weekday: "long" })` replaces `getUTCDay()` in both `createOrderHandler` and `computeEarliestDeliveryDate` |
+| REVIEW-001-016 | Reject $0 orders | `totalCents <= 0` check added after fee calculation; returns 400 `validation_error` before any D1 writes |
 
 ### Remaining Backlog
 
@@ -502,8 +508,12 @@ The following items were implemented in the same session as the review. All chan
 
 - [x] All sections A–G completed
 - [x] All P0 findings have an immediate action note (REVIEW-001-001: verify registry; REVIEW-001-002: URL validation)
-- [x] REVIEW-001-001 through REVIEW-001-006 fixed and deployed (commit `00ffdfb`, `olive_and_ivory_api`)
+- [x] REVIEW-001-001 through REVIEW-001-008, 010, 013, 014, 016 fixed and deployed (`olive_and_ivory_api`)
+- [x] REVIEW-001-017 documented in `docs/SECURITY.md`
 - [x] Tasks added to `docs/TASKS.md` (REVIEW-001-001 through REVIEW-001-017)
+- [x] REVIEW-001-009 deferred: `orderId` is generated per-request; duplicate INSERT cannot occur without a client-supplied idempotency key. Redesign required.
+- [x] REVIEW-001-011, 012 deferred: migration required; pending staging verification
+- [x] REVIEW-001-015 deferred: incremental refactor; tracked in `docs/TASKS.md`
 - [x] Documentation gaps identified (Section E)
 - [x] 500 LOC violation documented with full split plan (Section F)
 - [x] Review record committed to docs/reviews/

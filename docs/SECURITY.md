@@ -125,3 +125,26 @@ Severity levels: **Critical** / **High** / **Medium** / **Low**
 - Per-IP rate limiting on all sensitive endpoints
 - Separate rate limits (30 req/min) for AI, checkout, and Places endpoints
 - Correlation IDs for complete request tracing across services
+
+---
+
+## Data Retention
+
+### Current State
+
+| Table | PII Stored | Current Retention |
+|-------|-----------|-------------------|
+| `orders` | Full name, email, phone, delivery address, gift message | Indefinite — no cleanup policy |
+| `audit_logs` | Full order row in `after_json` (masked from REVIEW-001-010 onwards) | Indefinite |
+| `event_logs` | IP address, customer email, correlation IDs | ~30 days (current practice) |
+
+### Required Actions
+
+- **REVIEW-001-010** (complete): `audit_logs.after_json` now redacts PII fields for order entities via `redactOrderPii()` in `writeAuditLog`.
+- Define retention period for `orders`: suggested 7 years (ATO tax records requirement under ITAA 1997).
+- Define retention period for `audit_logs`: suggested 90 days; truncate PII fields after expiry, retain row skeleton for audit trail continuity.
+- Implement a D1 scheduled cleanup job or document a quarterly manual procedure.
+
+### Australian Privacy Act (APP 11.2)
+
+Under Australian Privacy Principles (APP 11.2), personal information no longer needed for its collected purpose must be destroyed or de-identified. The current indefinite retention of full customer PII in `orders` and `audit_logs` requires a formal retention decision and implementation before public launch.
