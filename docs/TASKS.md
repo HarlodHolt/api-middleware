@@ -47,6 +47,15 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Notes:** See SECURITY.md — "HMAC Nonce Replay Prevention Unverified"
 
+- [ ] **Log warning when Stripe event orderId cannot be resolved**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Observability
+  - **Why:** When `eventOrderId()` returns an empty string (metadata missing `order_id` and no `client_reference_id`), the webhook silently returns 200 at `info` level. This makes silent degradation hard to detect in monitoring.
+  - **Acceptance:**
+    - When orderId is empty after a verified event, log at `warn` level with `event_type`, `event_id`, and `skip_reason: "no_order_id"`
+  - **Priority:** medium
+  - **Notes:** REVIEW-002-003
+
 - [ ] **Add explicit event type allowlist to Stripe webhook handler**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Security

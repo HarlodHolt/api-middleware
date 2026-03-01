@@ -115,7 +115,8 @@ Severity levels: **Critical** / **High** / **Medium** / **Low**
 ## Security Strengths (Already Well Handled)
 
 - HMAC-SHA256 with timing-safe comparison for server-to-server auth
-- Stripe webhook signature validation via Stripe SDK
+- Stripe webhook signature validation via Stripe SDK (`constructEventAsync` + `SubtleCryptoProvider`)
+- Stripe webhook replay protection: `stripe_event_id` checked against stored order value before UPDATE; duplicate events acknowledged without re-processing (REVIEW-002-001)
 - Sensitive field redaction in all log sinks (passwords, tokens, API keys, secrets)
 - Parameterised D1 queries (prevents SQL injection)
 - HSTS, X-Frame-Options DENY, X-Content-Type-Options nosniff on all apps

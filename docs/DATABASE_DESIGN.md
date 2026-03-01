@@ -401,6 +401,8 @@ Defaults are baked into code if the table is absent.
 **`orders`** — Customer orders. Legacy address columns (`address_*`) are kept alongside
 `delivery_*` for compatibility. `deleted_at` is a soft-delete timestamp. `refunded_cents`
 tracks partial or full refunds. `payment_provider` values: `manual`, `stripe_checkout`.
+`stripe_event_id` stores the last Stripe event ID written to the row; used for webhook
+replay deduplication (duplicate events are skipped if this column already matches).
 
 **`order_items`** — Line items per order. References `collections` (not gifts/items) since
 the storefront treats a collection as the purchasable unit.
