@@ -483,7 +483,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ### Admin App
 
-- [ ] **Remove dead `GiftItemRow` type from `types.ts`**
+- [x] **Remove dead `GiftItemRow` type from `types.ts`**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Code quality
   - **Why:** `GiftItemRow` is exported from `src/lib/types.ts` but is never imported or used anywhere. The local `AttachedItem` type in `GiftProductsSection.tsx` covers the same shape. Dead export adds noise.
