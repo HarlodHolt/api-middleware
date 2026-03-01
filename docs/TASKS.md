@@ -65,6 +65,98 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Timeout errors classified and returned as 504 with structured error body
   - **Priority:** high
 
+- [x] **Register POST method on `/api/orders` in route registry**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security
+  - **Why:** `API_ROUTE_REGISTRY` only listed `GET` for `/api/orders` — misleading and a potential future bypass risk if `findRouteDoc` skip logic is refactored.
+  - **Acceptance:**
+    - Entry updated to `methods: ["GET", "POST"]`; purpose, request_example and notes reflect the POST path
+  - **Priority:** high
+  - **Notes:** REVIEW-001-001 — commit `00ffdfb`
+
+- [x] **Validate `success_url`/`cancel_url` before passing to Stripe**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security
+  - **Why:** Attacker with a valid HMAC key could supply an arbitrary redirect URL, redirecting customers after payment to a phishing or attacker-controlled domain.
+  - **Acceptance:**
+    - `isAllowedRedirectUrl()` enforces HTTPS protocol and hostname match against `SITE_BASE_URL` env var
+    - RFC-1918 and localhost ranges blocked as minimum guard
+    - Invalid URLs return 400 before Stripe is called
+  - **Priority:** high
+  - **Notes:** REVIEW-001-002 — commit `00ffdfb`
+
+- [x] **Add email format validation to order creation**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security
+  - **Why:** Malformed email strings were accepted and written to D1; Stripe would fail silently at session creation, leaving a paid order with no valid contact email.
+  - **Acceptance:**
+    - Basic RFC 5321 regex check in `validateCreateOrderInput`; invalid emails return 400 `validation_error`
+  - **Priority:** high
+  - **Notes:** REVIEW-001-003 — commit `00ffdfb`
+
+- [x] **Add max-length enforcement for all order string fields**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security
+  - **Why:** No field length caps meant arbitrarily large values could be written to D1 (storage waste) and passed to Stripe (API errors).
+  - **Acceptance:**
+    - `ORDER_FIELD_MAX_LENGTHS` constant defines limits (name: 200, email: 254, phone: 30, address: 300, message: 1000, etc.)
+    - Oversized inputs return 400; cart size capped at 20 items
+  - **Priority:** high
+  - **Notes:** REVIEW-001-004 — commit `00ffdfb`
+
+- [x] **Wrap order_items batch INSERT in try/catch with compensating rollback**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Infra
+  - **Why:** A failure in the order_items batch produced an orphan order row with no line items, no error returned to the caller, and no log event.
+  - **Acceptance:**
+    - Failure deletes the orphan order via compensating DELETE
+    - Logs `orders.create.items_failed` with correlation ID
+    - Returns 500 `order_items_insert_failed`
+  - **Priority:** high
+  - **Notes:** REVIEW-001-005 — commit `00ffdfb`
+
+- [x] **Log Stripe checkout session creation failures**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Observability
+  - **Why:** Stripe failures were silently swallowed; orders left as `manual/pending` with no log event, making silent degradation undetectable from monitoring.
+  - **Acceptance:**
+    - `warn`-level `orders.stripe.session_failed` event logged with `stripe_status` and `stripe_error` before handler falls back to manual/pending
+  - **Priority:** high
+  - **Notes:** REVIEW-001-006 — commit `00ffdfb`
+
+- [ ] **Add active/visible filter to collection SELECT in order creation**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security
+  - **Why:** Archived or inactive collections are currently orderable — customers can place orders for collections removed from the storefront.
+  - **Acceptance:**
+    - `WHERE id IN (...) AND status = 'active'` (or equivalent visibility check) applied to collection SELECT
+    - Cart containing an inactive collection returns 400 with a clear error
+    - Confirm all active collections have `status = 'active'` before deploying
+  - **Priority:** high
+  - **Notes:** REVIEW-001-007 — Day 001 review
+
+- [ ] **Add idempotency handling to order creation**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Infra
+  - **Why:** Worker retries on transient failure re-run the entire handler; the second D1 INSERT fails with duplicate primary key, returning 500 instead of the existing order and Stripe session.
+  - **Acceptance:**
+    - Duplicate `orderId` detected (e.g. `ON CONFLICT(id) DO NOTHING` or explicit SELECT before INSERT)
+    - Retried request returns the existing order and Stripe session URL rather than a 500
+    - Stale/expired Stripe sessions handled gracefully (re-create session or return error with the order)
+  - **Priority:** high
+  - **Notes:** REVIEW-001-009 — Day 001 review
+
+- [ ] **Redact PII fields from audit log order payloads**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security
+  - **Why:** `writeAuditLog` writes the full order row (name, email, phone, delivery address) to the audit log. If audit logs are queried for debugging or exported for incident analysis, they contain full unredacted customer PII.
+  - **Acceptance:**
+    - `customer_email`, `customer_phone`, `delivery_address_*` masked in audit log `after` payload (first 3 chars + `***`)
+    - Full PII retained in `orders` table only
+    - Data retention policy decision documented in `docs/SECURITY.md`
+  - **Priority:** high
+  - **Notes:** REVIEW-001-010 — Day 001 review
+
 ### Admin
 
 - [ ] **Migrate admin from `@cloudflare/next-on-pages` to `@opennextjs/cloudflare`**
@@ -224,12 +316,13 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 - [ ] **Split `coreRoutes.ts` into domain-scoped route files**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** DX
-  - **Why:** At 4,253 lines, `coreRoutes.ts` is a single-file monolith. It is slow to navigate, hard to review in PRs, and increases merge conflict surface area.
+  - **Why:** At 4,372 lines, `coreRoutes.ts` is a single-file monolith. It is slow to navigate, hard to review in PRs, and increases merge conflict surface area.
   - **Acceptance:**
-    - Routes split into at minimum: `collections.ts`, `gifts.ts`, `orders.ts`, `media.ts`, `inventory.ts`, `delivery.ts`
-    - `index.ts` registers each module
-    - TypeScript compiles cleanly
+    - Routes split into at minimum: `collections.ts`, `gifts.ts`, `orders.ts`, `media.ts`, `inventory.ts`, `delivery.ts`, `ai.ts`, `admin.ts`
+    - Shared helpers extracted to `src/lib/responseHelpers.ts`, `src/lib/logging.ts`, `src/lib/schemaCache.ts`
+    - `index.ts` registers each module; TypeScript compiles cleanly; all routes verified in production
   - **Priority:** medium
+  - **Notes:** REVIEW-001-015 — full split plan in `docs/reviews/2026-03-01-day001-POST-api-orders.md#F`
 
 - [ ] **Split `index.ts` into focused modules**
   - **Repo(s):** olive_and_ivory_api
@@ -251,6 +344,47 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Request rejected with a clear 422 error if over limit
     - Limit configurable via env var or prompt metadata
   - **Priority:** medium
+
+- [ ] **Replace per-request `tableExists`/`getTableColumns` with a module-level schema cache**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Infra / Perf
+  - **Why:** Up to 6 `sqlite_master` queries are issued per order creation request. Schema can only change via migration (which restarts the Worker), so caching is safe and eliminates per-request overhead.
+  - **Acceptance:**
+    - Module-level `Map` cache (or `src/lib/schemaCache.ts`) populated once at Worker startup
+    - All callers of `tableExists` and `getTableColumns` use the cached version
+    - No `sqlite_master` reads occur on the hot path in production
+  - **Priority:** medium
+  - **Notes:** REVIEW-001-008 — Day 001 review
+
+- [ ] **Enforce max `delivery_date` (12 weeks in advance)**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Checkout
+  - **Why:** No maximum delivery date is enforced, allowing orders with delivery dates arbitrarily far in the future. Requires a business decision on the maximum booking window.
+  - **Acceptance:**
+    - Delivery date more than 12 weeks (or configurable limit) out returns 400
+    - Maximum window documented as a business constant in code
+  - **Priority:** medium
+  - **Notes:** REVIEW-001-013 — Day 001 review
+
+- [ ] **Fix Sunday delivery block to use AEST timezone, not UTC**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Checkout
+  - **Why:** `getUTCDay() === 0` blocks Sundays in UTC — in AEST (UTC+10/+11), Sunday afternoons in AEST are Saturday in UTC and vice versa, causing incorrect day blocking for Australian customers.
+  - **Acceptance:**
+    - Day-of-week check uses `Australia/Sydney` timezone via `Intl.DateTimeFormat` or equivalent
+    - Unit test confirms correct blocking at AEST Sunday midnight / UTC Saturday evening
+  - **Priority:** medium
+  - **Notes:** REVIEW-001-014 — Day 001 review
+
+- [ ] **Enforce a minimum total for orders (reject $0 orders)**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Checkout / Security
+  - **Why:** No floor check on `total_cents` — a $0 total order could be created if collections are priced at zero or a delivery quote returns zero. Stripe rejects zero-amount sessions, but the order record is still written to D1.
+  - **Acceptance:**
+    - `total_cents <= 0` returns 400 before any D1 writes
+    - Business decision documented on whether $0 gift orders (full discount) are intended to be supported
+  - **Priority:** medium
+  - **Notes:** REVIEW-001-016 — Day 001 review
 
 ### Admin
 
@@ -364,6 +498,39 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - IP addresses pseudonymised (hashed) if full IP not required for debugging
     - Privacy policy page on storefront referencing log retention
   - **Priority:** low
+
+- [ ] **Remove legacy `address_*` columns from the `orders` table**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Infra / DB
+  - **Why:** `orders` table has duplicate address columns (`delivery_address_line1` / `address_line1`, etc.) written identically on every order creation — schema drift from a legacy rename. Dead columns waste storage and confuse readers.
+  - **Acceptance:**
+    - Full audit of all code reading `address_*` columns confirms no active consumer
+    - D1 migration removes `address_line1`, `address_suburb`, `address_state`, `address_postcode`, `address_country`
+    - Migration tested on staging first
+  - **Priority:** low
+  - **Notes:** REVIEW-001-011 — Day 001 review
+
+- [ ] **Remove legacy pricing columns from `order_items` table**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Infra / DB
+  - **Why:** `order_items` has duplicate `unit_price`/`unit_price_cents` and `line_total`/`line_total_cents` — bare names are legacy duplicates written identically to the `_cents` canonical columns.
+  - **Acceptance:**
+    - Audit confirms no consumer reads `unit_price` or `line_total` bare columns
+    - D1 migration removes the legacy bare columns
+    - Migration tested on staging first
+  - **Priority:** low
+  - **Notes:** REVIEW-001-012 — Day 001 review
+
+- [ ] **Define and enforce a data retention policy for `orders` and audit log tables**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security / Legal
+  - **Why:** `orders` and audit log tables grow indefinitely with no retention policy. Full customer PII (name, email, phone, delivery address) is stored in both tables. Australian Privacy Act requires a defined retention and deletion policy.
+  - **Acceptance:**
+    - Policy documented in `docs/SECURITY.md`
+    - D1 scheduled cleanup job or manual procedure documented for both tables
+    - Retention period justified (e.g. 7 years for tax compliance, 90 days for operational audit logs)
+  - **Priority:** low
+  - **Notes:** REVIEW-001-017 — Day 001 review
 
 - [ ] **Add D1 migration guardrails and rollback notes**
   - **Repo(s):** olive_and_ivory_api, admin_olive_and_ivory_gifts

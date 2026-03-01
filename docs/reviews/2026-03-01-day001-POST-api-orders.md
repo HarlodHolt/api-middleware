@@ -467,14 +467,23 @@ The file currently owns all of the following concerns:
 
 ## G. Improvement Backlog
 
+### Fixes Applied (2026-03-01)
+
+The following items were implemented in the same session as the review. All changes are in commit `00ffdfb` in `olive_and_ivory_api`.
+
+| ID | Title | Implementation |
+|----|-------|---------------|
+| REVIEW-001-001 | Register POST on `/api/orders` in route registry | `apiRouteRegistry.ts` — methods updated to `["GET", "POST"]`; purpose, request_example and notes updated |
+| REVIEW-001-002 | Validate `success_url`/`cancel_url` before passing to Stripe | `isAllowedRedirectUrl()` added; enforces HTTPS + `SITE_BASE_URL` hostname match + RFC-1918 block; called before Stripe session creation |
+| REVIEW-001-003 | Email format validation | `validateCreateOrderInput` — regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/` added; malformed email returns 400 `validation_error` |
+| REVIEW-001-004 | Max-length enforcement for all string order fields | `ORDER_FIELD_MAX_LENGTHS` constant added; all fields checked in `validateCreateOrderInput`; cart size capped at 20 items |
+| REVIEW-001-005 | order_items batch INSERT wrapped in try/catch | Failure deletes orphan order via compensating DELETE, logs `orders.create.items_failed`, returns 500 `order_items_insert_failed` |
+| REVIEW-001-006 | Log Stripe session creation failures | `warn`-level `orders.stripe.session_failed` event logged with `stripe_status` and `stripe_error` before falling back to manual/pending |
+
+### Remaining Backlog
+
 | ID | Priority | Title | Effort | Owner | Acceptance Criteria | Risk |
 |----|----------|-------|--------|-------|---------------------|------|
-| REVIEW-001-001 | **P0** | Verify `/api/orders` is registered in `API_ROUTE_REGISTRY` — if not, HMAC auth is bypassed via `findRouteDoc` skip | S | — | Confirm entry exists in registry; if missing, add it and deploy immediately | Auth bypass on order creation |
-| REVIEW-001-002 | **P0** | Validate `success_url` and `cancel_url` against a domain allowlist before passing to Stripe | S | — | Requests with non-allowlisted domains are rejected with 400; storefront's own origin always passes; allowlist configured via env var | Breaks any legitimate caller not on the allowlist |
-| REVIEW-001-003 | **P1** | Add email format validation to `validateCreateOrderInput` | S | — | RFC 5321 basic format check; invalid emails return 400 with `validation_error` | Low — only affects malformed input already rejected by Stripe |
-| REVIEW-001-004 | **P1** | Add max-length enforcement for all unvalidated string fields (`customer_name`, phone, `gift_message`, notes, address fields) | S | — | Each field has a documented max length (e.g. name: 200, message: 1000, address: 300); oversized inputs return 400 | Low |
-| REVIEW-001-005 | **P1** | Wrap order_items batch INSERT in try/catch; log failure and return structured error | S | — | A batch failure returns 500 with `order_items_insert_failed` code; error is logged with correlation ID; order is cleaned up or clearly marked as incomplete | Requires decision on whether to roll back the order INSERT too |
-| REVIEW-001-006 | **P1** | Log Stripe session creation failure explicitly | S | — | If `stripe.ok === false`, a `warn`-level event with `stripe.checkout.failed` action is written before the handler proceeds as `manual/pending` | None |
 | REVIEW-001-007 | **P1** | Add active/visible filter to collection SELECT in order creation (`WHERE id IN (...) AND status = 'active'`) | S | — | Archived collections cannot be ordered; cart with inactive collection returns 400 | None after confirming all active collections have `status = 'active'` |
 | REVIEW-001-008 | **P1** | Replace per-request `tableExists` / `getTableColumns` with a module-level schema cache | M | — | All `sqlite_master` queries happen once at Worker startup; subsequent requests use cached results; cache is invalidated on Worker deployment | Low — schema can only change via migration, which restarts the Worker |
 | REVIEW-001-009 | **P1** | Add idempotency handling to order creation: `ON CONFLICT(id) DO NOTHING` or detect duplicate and return existing order | M | — | Retried requests with the same `orderId` return the existing order and Stripe session rather than a 500 | Requires careful handling to avoid returning a stale `checkout_url` that has expired |
@@ -493,7 +502,8 @@ The file currently owns all of the following concerns:
 
 - [x] All sections A–G completed
 - [x] All P0 findings have an immediate action note (REVIEW-001-001: verify registry; REVIEW-001-002: URL validation)
-- [x] Tasks added to docs/TASKS.md — **pending: tasks REVIEW-001-001 through REVIEW-001-017 to be added**
+- [x] REVIEW-001-001 through REVIEW-001-006 fixed and deployed (commit `00ffdfb`, `olive_and_ivory_api`)
+- [x] Tasks added to `docs/TASKS.md` (REVIEW-001-001 through REVIEW-001-017)
 - [x] Documentation gaps identified (Section E)
 - [x] 500 LOC violation documented with full split plan (Section F)
 - [x] Review record committed to docs/reviews/
