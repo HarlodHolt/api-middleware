@@ -47,6 +47,27 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Notes:** See SECURITY.md — "HMAC Nonce Replay Prevention Unverified"
 
+- [ ] **Add explicit event type allowlist to Stripe webhook handler**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security
+  - **Why:** Unknown Stripe event types pass signature verification and still write `payment_provider`, `updated_at`, and `stripe_event_id` to the matched order row. An explicit allowlist prevents metadata pollution from unexpected event types.
+  - **Acceptance:**
+    - Define `HANDLED_STRIPE_EVENT_TYPES` set containing known types
+    - Unknown types return 200 without writing to orders (Stripe still considers it delivered)
+    - Unknown event type logged at `info` level with `skip_reason: "unhandled_event_type"`
+  - **Priority:** medium
+  - **Notes:** REVIEW-002-004
+
+- [ ] **Exempt Stripe webhook from global rate limit (or raise per-path limit)**
+  - **Repo(s):** olive_and_ivory_api, api-middleware
+  - **Area:** Infra
+  - **Why:** Global `withRateLimit({ limit: 60 })` applies to `/api/stripe/webhook`. Stripe batch retries (e.g., after a 5xx window) can exhaust the limit and receive 429s, causing Stripe to back off and delaying payment confirmation.
+  - **Acceptance:**
+    - Stripe webhook paths added to rate-limit bypass list, or a per-path limit of ≥ 300/min applied
+    - Global limit unchanged for all other routes
+  - **Priority:** medium
+  - **Notes:** REVIEW-002-005
+
 - [ ] **Implement or remove `/shipping/details` endpoint**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Checkout
@@ -211,6 +232,28 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Inline expanded edit row appears on item activation with alt text, focal, crop controls
     - Add image button always visible; keyboard accessible expand/collapse
   - **Priority:** medium
+
+- [ ] **Split GiftEditorForm into focused feature sections**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Editor UX / Maintainability
+  - **Why:** `GiftEditorForm.tsx` remains a large multi-responsibility file even after extracting gift product management. This slows changes and increases regression risk.
+  - **Acceptance:**
+    - `GiftEditorForm.tsx` reduced below 500 LOC
+    - Core sections (overview, AI, media, products, SEO/tags, preview) moved into focused child components or hooks
+    - Existing behavior and save contract unchanged
+  - **Priority:** medium
+  - **Notes:** Product assignment moved into `src/components/gift-editor/GiftProductsSection.tsx`, but the parent form is still oversized.
+
+- [ ] **Add reusable sortable list pattern before introducing gift product drag-and-drop**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Editor UX / Reuse
+  - **Why:** Gift product ordering currently uses explicit up/down controls. There is no existing drag-and-drop/sortable interaction pattern in admin, so adding one directly here would introduce a one-off UI pattern and violate the reuse rule.
+  - **Acceptance:**
+    - Existing sortable interaction patterns across admin are audited
+    - A reusable sortable list component or hook is defined and adopted in at least 2 places
+    - Gift product ordering is upgraded to drag-and-drop only after the shared pattern exists
+  - **Priority:** medium
+  - **Notes:** Current gift product ordering is functional and should remain on up/down controls until a shared sortable pattern is available.
 
 ### Storefront
 
