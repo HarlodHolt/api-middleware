@@ -11,7 +11,7 @@ via inline `CREATE TABLE IF NOT EXISTS` guards in `coreRoutes.ts` on first use.
 | Domain | Tables |
 |---|---|
 | **Catalogue** | `collections`, `gifts`, `collection_gifts` |
-| **Gift Components** | `gift_inventory_items`, `gift_media`, `inventory_items`, `inventory_adjustments` |
+| **Gift Components** | `gift_inventory_items`, `gift_media`, `inventory_items`, `inventory_stock`, `inventory_stock_adjustments` |
 | **Variants (legacy)** | `collection_variants`, `collection_variant_items` |
 | **Storefront** | `hero_slides`, `featured_collections`, `newsletter_signups`, `settings`, `delivery_zones` |
 | **Commerce** | `orders`, `order_items` |
@@ -79,31 +79,33 @@ erDiagram
   inventory_items {
     TEXT id PK
     TEXT name
-    TEXT sku
-    TEXT barcode
-    TEXT description
-    TEXT tags
+    TEXT slug
     TEXT status
-    INTEGER is_active
-    INTEGER price_cents
-    INTEGER cost_cents
-    INTEGER stock_quantity
-    INTEGER low_stock_threshold
-    INTEGER pack_qty
-    REAL unit_size
-    TEXT unit_type
-    REAL unit_price
-    INTEGER weight_grams
-    TEXT dimensions
-    TEXT location
-    TEXT store_name
+    TEXT store
     TEXT supplier_url
+    TEXT barcode_gtin
+    INTEGER qty_per_pack
+    TEXT unit_type
+    REAL unit_size
+    INTEGER price_per_pack_cents
+    INTEGER cost_per_pack_cents
+    INTEGER total_individual_qty
+    INTEGER price_per_unit_cents
+    INTEGER cost_per_unit_cents
+    TEXT hero_image_key
+    REAL focal_x
+    REAL focal_y
+    TEXT crop_json
+    TEXT variants_json
+    TEXT tags
     TEXT notes
-    TEXT image_key
-    TEXT image_key_large
-    TEXT image_key_medium
-    TEXT image_key_thumb
     TEXT created_at
+    TEXT updated_at
+  }
+
+  inventory_stock {
+    TEXT item_id PK
+    INTEGER stock_on_hand
     TEXT updated_at
   }
 
@@ -132,28 +134,15 @@ erDiagram
     TEXT updated_at
   }
 
-  inventory_adjustments {
+  inventory_stock_adjustments {
     TEXT id PK
     TEXT item_id FK
-    INTEGER delta_quantity
+    INTEGER delta
     TEXT reason
-    INTEGER resulting_stock_quantity
     TEXT created_at
   }
 
   %% ── VARIANTS (LEGACY) ──────────────────────────────────────
-
-  items {
-    TEXT id PK
-    TEXT name
-    TEXT sku
-    TEXT description
-    INTEGER price_cents
-    INTEGER cost_cents
-    INTEGER stock_quantity
-    INTEGER low_stock_threshold
-    TEXT status
-  }
 
   collection_variants {
     TEXT id PK
@@ -356,7 +345,6 @@ erDiagram
 
   collections ||--o{ collection_variants : "has"
   collection_variants ||--o{ collection_variant_items : "has"
-  collection_variant_items }o--|| items : "uses"
 
   collections ||--o{ featured_collections : "featured as"
 
@@ -367,7 +355,8 @@ erDiagram
   gifts ||--o{ gift_ai_runs : "AI history"
   gift_ai_runs }o--|| ai_prompts : "uses prompt"
 
-  inventory_items ||--o{ inventory_adjustments : "stock log"
+  inventory_items ||--o| inventory_stock : "stock level"
+  inventory_items ||--o{ inventory_stock_adjustments : "stock log"
 
   orders ||--o{ order_items : "contains"
   order_items }o--|| collections : "collection ref"
@@ -391,31 +380,35 @@ independent `sort_order`. Supersedes the legacy `collection_id` FK on `gifts`.
 
 ### Gift Components
 
-**`inventory_items`** — Physical stock components (e.g. "Bamboo Soap Bar"). `stock_quantity`
-is the live inventory counter (in packs). Image keys are stored as individual columns
-(`image_key`, `image_key_large`, `image_key_medium`, `image_key_thumb`) rather than a JSON
-array. Pack/unit fields (`pack_qty`, `unit_size`, `unit_type`, `unit_price`) describe how the
-item is purchased and how unit cost is calculated. `is_active` mirrors `status = 'active'`
-as an integer flag for legacy query compatibility.
+**`inventory_items`** — Physical stock components (e.g. "Bamboo Soap Bar"). `slug` is the
+unique SKU. `qty_per_pack` describes how many individual units come in one pack. Pricing is
+stored at the pack level (`price_per_pack_cents`, `cost_per_pack_cents`) and also per unit
+(`price_per_unit_cents`, `cost_per_unit_cents`). `total_individual_qty` is the drawable
+unit count. `hero_image_key` is the primary R2 image; `variants_json` holds image variant
+keys. `barcode_gtin` stores the GTIN. The API layer maps these columns to legacy field names
+(`slug` → `sku`, `qty_per_pack` → `pack_qty`, `price_per_pack_cents` → `price_cents`, etc.)
+for backwards-compatible responses.
+
+**`inventory_stock`** — Current stock level per item. One row per `inventory_items` record.
+`stock_on_hand` is the authoritative count of individual drawable units.
+
+**`inventory_stock_adjustments`** — Append-only ledger of every stock change. `delta` is
+signed (+/-). Joined with `inventory_stock` to compute the current level.
 
 **`gift_inventory_items`** — Bill-of-materials: maps a gift to the inventory items it
-requires (`inventory_id` FK) and the quantity of each. Replaced the legacy
-`collection_items` table. `inventory_id` references `inventory_items.id`.
+requires (`inventory_id` FK → `inventory_items.id`) and the quantity of each. Replaced the
+legacy `gift_items` → `items` join table (migration 0055). `gift_items` still exists in D1
+but is no longer read or written by any code.
 
 **`gift_media`** — Multi-image library for a gift. `is_primary = 1` is the hero image.
 `crop_json` and `variants_json` store editor crop/variant metadata.
 
-**`inventory_adjustments`** — Append-only ledger of every stock change. `delta_quantity`
-is signed (+/-). `resulting_stock_quantity` is the snapshot after the adjustment.
-
 ### Variants (Legacy)
-
-**`items`** — Simpler legacy stock table used exclusively by `collection_variant_items`.
-Distinct from `inventory_items`; the two tables are not interchangeable.
 
 **`collection_variants`** / **`collection_variant_items`** — Earlier approach to per-gift
 options (e.g. size variants). Retained for backwards-compatibility but superseded by the
-`gifts` + `gift_inventory_items` model.
+`gifts` + `gift_inventory_items` model. `collection_variant_items` has a `item_id` FK that
+originally referenced the legacy `items` table, which was dropped in migration 0054.
 
 ### Storefront
 
@@ -470,6 +463,10 @@ are purged on each successful auth.
 
 ## Migration Index
 
+There are two migration sequences that write to the same D1 database.
+
+### API Worker Migrations (`olive_and_ivory_api/migrations/`)
+
 | File | Added |
 |---|---|
 | `0001_api_tables.sql` | `event_logs`, `ai_prompts`, `api_nonces` |
@@ -483,6 +480,19 @@ are purged on each successful auth.
 | `0010_orders_delete_refund.sql` | `deleted_at`, `refunded_cents`, `cancel_reason` on `orders` |
 | `0011_hero_slides.sql` | `hero_slides` |
 
-Core business tables (`collections`, `gifts`, `items`, `orders`, etc.) were created
-directly in the D1 console and are managed by `CREATE TABLE IF NOT EXISTS` guards in
-`coreRoutes.ts`.
+Core business tables (`collections`, `gifts`, `orders`, etc.) were created directly in the
+D1 console and are managed by `CREATE TABLE IF NOT EXISTS` guards in `coreRoutes.ts`.
+
+### Admin Migrations (`admin_olive_and_ivory_gifts/migrations/`)
+
+Key migrations in the admin sequence (selected entries):
+
+| File | Notes |
+|---|---|
+| `0035_gifts_featured_collections.sql` | `gifts`, `gift_items` (legacy join → `items`), `featured_collections` |
+| `0046_inventory_items_canonical_schema.sql` | `inventory_items`, `inventory_stock`, `inventory_stock_adjustments` |
+| `0047_inventory_items_backfill_from_legacy_items.sql` | backfill `inventory_items` from legacy `items` |
+| `0054_drop_legacy_items_table.sql` | **drops** `items` table |
+| `0055_gift_inventory_items.sql` | `gift_inventory_items` (canonical BOM); backfills from `gift_items` |
+
+`gift_items` (created in 0035) still exists in D1 but no code reads or writes it since migration 0055.

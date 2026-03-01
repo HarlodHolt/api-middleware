@@ -481,6 +481,17 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ## Low Priority / Polish
 
+### Admin App
+
+- [ ] **Remove dead `GiftItemRow` type from `types.ts`**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Code quality
+  - **Why:** `GiftItemRow` is exported from `src/lib/types.ts` but is never imported or used anywhere. The local `AttachedItem` type in `GiftProductsSection.tsx` covers the same shape. Dead export adds noise.
+  - **Acceptance:**
+    - `GiftItemRow` removed from `types.ts`
+    - TypeScript build passes
+  - **Priority:** low
+
 ### All Repos
 
 - [ ] **Coordinate D1 migration strategy across repos**
