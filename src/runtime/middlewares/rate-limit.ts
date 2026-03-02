@@ -74,6 +74,7 @@ export function withRateLimit(configuration: RateLimitConfig): MiddlewareFunctio
   const tableName = configuration.table_name || "api_rate_limits";
 
   return async (request, context, next) => {
+    if (configuration.skip?.(request, context)) return next();
     const nowMilliseconds = Date.now();
     const bucketWindowStart = getWindowStartSeconds(nowMilliseconds, configuration.window_seconds);
     const retryAfterSeconds = getRetryAfterSeconds(nowMilliseconds, bucketWindowStart, configuration.window_seconds);

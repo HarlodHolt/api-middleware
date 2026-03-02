@@ -1,6 +1,6 @@
 # Outstanding Tasks & Improvements
 
-> Last updated: 2026-03-01
+> Last updated: 2026-03-02
 > Owner: repo agent / Yuri
 > Scope: Task backlog for the Olive & Ivory Gifts project
 
@@ -47,7 +47,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Notes:** See SECURITY.md — "HMAC Nonce Replay Prevention Unverified"
 
-- [ ] **Log warning when Stripe event orderId cannot be resolved**
+- [x] **Log warning when Stripe event orderId cannot be resolved**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Observability
   - **Why:** When `eventOrderId()` returns an empty string (metadata missing `order_id` and no `client_reference_id`), the webhook silently returns 200 at `info` level. This makes silent degradation hard to detect in monitoring.
@@ -56,7 +56,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** REVIEW-002-003
 
-- [ ] **Add explicit event type allowlist to Stripe webhook handler**
+- [x] **Add explicit event type allowlist to Stripe webhook handler**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Security
   - **Why:** Unknown Stripe event types pass signature verification and still write `payment_provider`, `updated_at`, and `stripe_event_id` to the matched order row. An explicit allowlist prevents metadata pollution from unexpected event types.
@@ -67,7 +67,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** REVIEW-002-004
 
-- [ ] **Exempt Stripe webhook from global rate limit (or raise per-path limit)**
+- [x] **Exempt Stripe webhook from global rate limit (or raise per-path limit)**
   - **Repo(s):** olive_and_ivory_api, api-middleware
   - **Area:** Infra
   - **Why:** Global `withRateLimit({ limit: 60 })` applies to `/api/stripe/webhook`. Stripe batch retries (e.g., after a 5xx window) can exhaust the limit and receive 429s, causing Stripe to back off and delaying payment confirmation.
@@ -376,7 +376,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** REVIEW-001-015 — full split plan in `docs/reviews/2026-03-01-day001-POST-api-orders.md#F`
 
-- [ ] **Split `index.ts` into focused modules**
+- [x] **Split `index.ts` into focused modules**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** DX
   - **Why:** At 2,549 lines, the worker entry point mixes health checks, Stripe handling, logging routes, and app bootstrap. Each concern should live in its own file.

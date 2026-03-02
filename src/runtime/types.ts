@@ -97,6 +97,7 @@ export interface RateLimitConfig {
   key_fn?: (request: Request, context: MiddlewareContext) => string;
   table_name?: string;
   mode?: "d1" | "memory";
+  skip?: (request: Request, context: MiddlewareContext) => boolean;
 }
 
 export interface AuthHmacConfig {
