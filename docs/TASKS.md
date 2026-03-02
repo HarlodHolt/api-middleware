@@ -21,70 +21,11 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ---
 
-## High Priority
+## To Do
 
-### API Worker
+### High Priority
 
-- [x] **Complete `collection_items` → `gift_inventory_items` migration cutover**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Infra / DB
-  - **Why:** Legacy `collection_items` read/sync was still active behind a `TODO(gifts-cutover)` comment, creating dual code paths.
-  - **Acceptance:**
-    - All consumers migrated to read `gift_inventory_items` (FK: `inventory_id` → `inventory_items.id`)
-    - Legacy `collection_items` sync code removed from `coreRoutes.ts`
-    - Migration smoke-tested against production D1
-  - **Priority:** high
-  - **Notes:** Actual join table is `gift_inventory_items`, not `gift_items`. Item entity table is `inventory_items`, not `items`.
-
-- [x] **Verify HMAC nonce uniqueness enforcement**
-  - **Repo(s):** olive_and_ivory_api, api-middleware
-  - **Area:** Security
-  - **Why:** The `api_nonces` table exists for replay prevention but there is no confirmed code path that inserts nonces on receipt and validates uniqueness. Without this, captured requests can be replayed within the 300s tolerance window.
-  - **Acceptance:**
-    - Confirm `withAuthHmac` inserts received nonce into `api_nonces` on success
-    - Confirm duplicate nonce within tolerance window returns 401
-    - Add an integration test covering replay scenario
-  - **Priority:** high
-  - **Notes:** See SECURITY.md — "HMAC Nonce Replay Prevention Unverified"
-
-- [x] **Log warning when Stripe event orderId cannot be resolved**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Observability
-  - **Why:** When `eventOrderId()` returns an empty string (metadata missing `order_id` and no `client_reference_id`), the webhook silently returns 200 at `info` level. This makes silent degradation hard to detect in monitoring.
-  - **Acceptance:**
-    - When orderId is empty after a verified event, log at `warn` level with `event_type`, `event_id`, and `skip_reason: "no_order_id"`
-  - **Priority:** medium
-  - **Notes:** REVIEW-002-003
-
-- [x] **Add explicit event type allowlist to Stripe webhook handler**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Security
-  - **Why:** Unknown Stripe event types pass signature verification and still write `payment_provider`, `updated_at`, and `stripe_event_id` to the matched order row. An explicit allowlist prevents metadata pollution from unexpected event types.
-  - **Acceptance:**
-    - Define `HANDLED_STRIPE_EVENT_TYPES` set containing known types
-    - Unknown types return 200 without writing to orders (Stripe still considers it delivered)
-    - Unknown event type logged at `info` level with `skip_reason: "unhandled_event_type"`
-  - **Priority:** medium
-  - **Notes:** REVIEW-002-004
-
-- [x] **Exempt Stripe webhook from global rate limit (or raise per-path limit)**
-  - **Repo(s):** olive_and_ivory_api, api-middleware
-  - **Area:** Infra
-  - **Why:** Global `withRateLimit({ limit: 60 })` applies to `/api/stripe/webhook`. Stripe batch retries (e.g., after a 5xx window) can exhaust the limit and receive 429s, causing Stripe to back off and delaying payment confirmation.
-  - **Acceptance:**
-    - Stripe webhook paths added to rate-limit bypass list, or a per-path limit of ≥ 300/min applied
-    - Global limit unchanged for all other routes
-  - **Priority:** medium
-  - **Notes:** REVIEW-002-005
-
-- [ ] **Implement or remove `/shipping/details` endpoint**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Checkout
-  - **Why:** Currently returns `501 Not Implemented` — misleads API consumers and fails health checks.
-  - **Acceptance:**
-    - Either implement the endpoint with real shipping detail data
-    - Or remove the route and update any clients that reference it
-  - **Priority:** high
+#### API Worker
 
 - [ ] **Add request timeout handling on all outbound fetch calls**
   - **Repo(s):** olive_and_ivory_api
@@ -94,75 +35,6 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - All outbound `fetch()` calls wrapped with `AbortController` and a configurable timeout (default 10s)
     - Timeout errors classified and returned as 504 with structured error body
   - **Priority:** high
-
-- [x] **Register POST method on `/api/orders` in route registry**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Security
-  - **Why:** `API_ROUTE_REGISTRY` only listed `GET` for `/api/orders` — misleading and a potential future bypass risk if `findRouteDoc` skip logic is refactored.
-  - **Acceptance:**
-    - Entry updated to `methods: ["GET", "POST"]`; purpose, request_example and notes reflect the POST path
-  - **Priority:** high
-  - **Notes:** REVIEW-001-001 — commit `00ffdfb`
-
-- [x] **Validate `success_url`/`cancel_url` before passing to Stripe**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Security
-  - **Why:** Attacker with a valid HMAC key could supply an arbitrary redirect URL, redirecting customers after payment to a phishing or attacker-controlled domain.
-  - **Acceptance:**
-    - `isAllowedRedirectUrl()` enforces HTTPS protocol and hostname match against `SITE_BASE_URL` env var
-    - RFC-1918 and localhost ranges blocked as minimum guard
-    - Invalid URLs return 400 before Stripe is called
-  - **Priority:** high
-  - **Notes:** REVIEW-001-002 — commit `00ffdfb`
-
-- [x] **Add email format validation to order creation**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Security
-  - **Why:** Malformed email strings were accepted and written to D1; Stripe would fail silently at session creation, leaving a paid order with no valid contact email.
-  - **Acceptance:**
-    - Basic RFC 5321 regex check in `validateCreateOrderInput`; invalid emails return 400 `validation_error`
-  - **Priority:** high
-  - **Notes:** REVIEW-001-003 — commit `00ffdfb`
-
-- [x] **Add max-length enforcement for all order string fields**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Security
-  - **Why:** No field length caps meant arbitrarily large values could be written to D1 (storage waste) and passed to Stripe (API errors).
-  - **Acceptance:**
-    - `ORDER_FIELD_MAX_LENGTHS` constant defines limits (name: 200, email: 254, phone: 30, address: 300, message: 1000, etc.)
-    - Oversized inputs return 400; cart size capped at 20 items
-  - **Priority:** high
-  - **Notes:** REVIEW-001-004 — commit `00ffdfb`
-
-- [x] **Wrap order_items batch INSERT in try/catch with compensating rollback**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Infra
-  - **Why:** A failure in the order_items batch produced an orphan order row with no line items, no error returned to the caller, and no log event.
-  - **Acceptance:**
-    - Failure deletes the orphan order via compensating DELETE
-    - Logs `orders.create.items_failed` with correlation ID
-    - Returns 500 `order_items_insert_failed`
-  - **Priority:** high
-  - **Notes:** REVIEW-001-005 — commit `00ffdfb`
-
-- [x] **Log Stripe checkout session creation failures**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Observability
-  - **Why:** Stripe failures were silently swallowed; orders left as `manual/pending` with no log event, making silent degradation undetectable from monitoring.
-  - **Acceptance:**
-    - `warn`-level `orders.stripe.session_failed` event logged with `stripe_status` and `stripe_error` before handler falls back to manual/pending
-  - **Priority:** high
-  - **Notes:** REVIEW-001-006 — commit `00ffdfb`
-
-- [x] **Add active/visible filter to collection SELECT in order creation**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Security
-  - **Why:** Archived or inactive collections are currently orderable — customers can place orders for collections removed from the storefront.
-  - **Acceptance:**
-    - `WHERE id IN (...) AND status = 'active'` applied to collection SELECT
-    - Cart containing an inactive collection returns 400 `collection_unavailable`
-  - **Priority:** high
-  - **Notes:** REVIEW-001-007 — commit `4871213` (see Day 001 review)
 
 - [ ] **Add idempotency handling to order creation**
   - **Repo(s):** olive_and_ivory_api
@@ -175,19 +47,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Notes:** REVIEW-001-009 — Day 001 review; deferred pending design
 
-- [x] **Redact PII fields from audit log order payloads**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Security
-  - **Why:** `writeAuditLog` wrote the full order row to audit logs; querying logs for debugging would expose unredacted customer PII.
-  - **Acceptance:**
-    - `redactOrderPii()` helper masks PII fields in `after_json` / `before_json` for order entities
-    - `customer_email`, `customer_phone`, `delivery_address_*` masked as `abc***`
-    - Full PII retained in `orders` table only
-    - Data retention policy documented in `docs/SECURITY.md`
-  - **Priority:** high
-  - **Notes:** REVIEW-001-010 — commit `4871213` (see Day 001 review)
-
-### Admin
+#### Admin
 
 - [ ] **Migrate admin from `@cloudflare/next-on-pages` to `@opennextjs/cloudflare`**
   - **Repo(s):** admin_olive_and_ivory_gifts
@@ -200,26 +60,6 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Login, collections, gifts, and orders pages verified working
   - **Priority:** high
 
-- [x] **Remove deprecated `/api/admin/collections/[id]/ai-assist` route alias**
-  - **Repo(s):** admin_olive_and_ivory_gifts, olive_and_ivory_api
-  - **Area:** AI Assist
-  - **Why:** The endpoint is a backward-compat wrapper with a TODO to remove once all clients are on `/ai-suggest`. Leaving it active means two code paths to maintain.
-  - **Acceptance:**
-    - Confirmed no clients still calling `/ai-assist`
-    - Route file deleted from admin repo
-    - Corresponding alias removed from API worker if present
-  - **Priority:** high
-
-- [x] **Fix admin app page metadata (title / description)**
-  - **Repo(s):** admin_olive_and_ivory_gifts
-  - **Area:** DX
-  - **Why:** Layout still has Next.js scaffold defaults: `title: "Create Next App"`. This leaks in browser tabs, bookmarks, and SEO crawlers.
-  - **Acceptance:**
-    - `src/app/layout.tsx` updated with correct title and description
-    - Favicon updated if still using Next.js default
-  - **Priority:** high
-  - **Notes:** `src/app/layout.tsx` line ~18
-
 - [ ] **Fix Hero Preview blank on gift edit page**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Images / UX
@@ -230,6 +70,110 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - getPrimaryPreviewKey handles empty variants_json without returning null
     - onError handler shows empty state on 404/403
   - **Priority:** high
+
+#### Storefront
+
+- [ ] **Implement `/contact` page form submission**
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** CX
+  - **Why:** The contact page renders a form but has no submission handler. Customers expecting to send an enquiry get no feedback and no message is delivered.
+  - **Acceptance:**
+    - Form submits to an API route (Brevo, email webhook, or similar)
+    - Success and error states shown to user
+    - Rate limited at middleware level
+  - **Priority:** high
+
+#### All Repos
+
+- [ ] **Publish `api-middleware` to npm**
+  - **Repo(s):** api-middleware, olive_and_ivory_api, olive_and_ivory_gifts, admin_olive_and_ivory_gifts
+  - **Area:** DX / Infra
+  - **Why:** All three apps depend on `api-middleware` via a git ref. Git deps are not scanned by `npm audit`, have slower installs, and make version bumps manual and error-prone.
+  - **Acceptance:**
+    - Package published to npm (private scope `@harloldholt/api-middleware` or public)
+    - All three consumer `package.json` files updated to npm ref
+    - `npm audit` now covers the package
+  - **Priority:** high
+
+---
+
+### Medium Priority
+
+#### AI Assist
+
+- [ ] **Add schema caching strategy for AI suggest responses**
+  - **Repo(s):** olive_and_ivory_api, admin_olive_and_ivory_gifts
+  - **Area:** AI Assist
+  - **Why:** Every AI suggest call fetches the output schema from the `ai_prompts` D1 table. Under high admin usage this adds per-request D1 reads. A short TTL cache would reduce latency and DB load.
+  - **Acceptance:**
+    - Schema fetched from D1 on cold start, cached in Worker memory with a 60s TTL
+    - Cache invalidated when an admin updates the prompt via settings
+    - Unit test covers cache hit and miss paths
+  - **Priority:** medium
+
+- [ ] **Pin schema version per AI run in `gift_ai_runs` table**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** AI Assist
+  - **Why:** `gift_ai_runs` records store `prompt_id` but not the schema version at time of the run. If the output schema is changed in `ai_prompts`, old runs become ambiguous — it is unclear whether a historical output conformed to the current or an older schema.
+  - **Acceptance:**
+    - `gift_ai_runs` table gains a `schema_version` or `prompt_version_hash` column (migration required)
+    - API populates this field on every AI run insert
+    - Admin AI run history view shows schema version
+  - **Priority:** medium
+
+- [ ] **Add token usage and retry count telemetry to AI run logs**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** AI Assist / Observability
+  - **Why:** No visibility into OpenAI token consumption per run. This makes it impossible to audit costs, detect runaway prompts, or set sensible limits.
+  - **Acceptance:**
+    - `gift_ai_runs.input_tokens`, `output_tokens`, `total_tokens`, `retry_count` columns added
+    - API populates these from OpenAI response metadata
+    - Aggregate token usage visible in admin `/logs` metrics or a dedicated view
+  - **Priority:** medium
+
+- [ ] **Persist AI suggestion history per collection entity**
+  - **Repo(s):** olive_and_ivory_api, admin_olive_and_ivory_gifts
+  - **Area:** AI Assist
+  - **Why:** AI runs are logged in `gift_ai_runs` for gifts but collection-level AI suggest history is not persisted. Admins cannot compare or revert to a previous suggestion.
+  - **Acceptance:**
+    - `collection_ai_runs` table created (or `ai_runs` generalised with `entity_type` column)
+    - API persists every collection AI suggest call with input, output, model, and prompt version
+    - Admin collection detail page shows last N AI suggestions with timestamps
+  - **Priority:** medium
+
+- [ ] **Add integration tests for AI output schema enforcement**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** AI Assist / Testing
+  - **Why:** The API validates OpenAI output against a Zod schema, but there are no automated tests that exercise schema validation failure paths — a silent regression would reach admins.
+  - **Acceptance:**
+    - Tests cover: valid output passes, missing required field rejected, extra field stripped, wrong type coerced or rejected
+    - Tests use a mocked OpenAI client (no real API calls in CI)
+  - **Priority:** medium
+
+#### API Worker
+
+- [ ] **Split `coreRoutes.ts` into domain-scoped route files**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** DX
+  - **Why:** At 4,372 lines, `coreRoutes.ts` is a single-file monolith. It is slow to navigate, hard to review in PRs, and increases merge conflict surface area.
+  - **Acceptance:**
+    - Routes split into at minimum: `collections.ts`, `gifts.ts`, `orders.ts`, `media.ts`, `inventory.ts`, `delivery.ts`, `ai.ts`, `admin.ts`
+    - Shared helpers extracted to `src/lib/responseHelpers.ts`, `src/lib/logging.ts`, `src/lib/schemaCache.ts`
+    - `index.ts` registers each module; TypeScript compiles cleanly; all routes verified in production
+  - **Priority:** medium
+  - **Notes:** REVIEW-001-015 — full split plan in `docs/reviews/2026-03-01-day001-POST-api-orders.md#F`
+
+- [ ] **Add OpenAI prompt length guard before sending to API**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** AI Assist / Security
+  - **Why:** The `ai_prompts` schema allows up to 24,000 character fields, but there is no validation that the assembled prompt stays within OpenAI's context limit. An oversized prompt causes an opaque 400 from OpenAI.
+  - **Acceptance:**
+    - Total token estimate calculated before sending (character count proxy is acceptable)
+    - Request rejected with a clear 422 error if over limit
+    - Limit configurable via env var or prompt metadata
+  - **Priority:** medium
+
+#### Admin
 
 - [ ] **Refactor Media panel to compact row layout**
   - **Repo(s):** admin_olive_and_ivory_gifts
@@ -264,189 +208,6 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** Current gift product ordering is functional and should remain on up/down controls until a shared sortable pattern is available.
 
-### Storefront
-
-- [ ] **Implement `/contact` page form submission**
-  - **Repo(s):** olive_and_ivory_gifts
-  - **Area:** CX
-  - **Why:** The contact page renders a form but has no submission handler. Customers expecting to send an enquiry get no feedback and no message is delivered.
-  - **Acceptance:**
-    - Form submits to an API route (Brevo, email webhook, or similar)
-    - Success and error states shown to user
-    - Rate limited at middleware level
-  - **Priority:** high
-
-- [x] **Remove geocode debug logging from production**
-  - **Repo(s):** olive_and_ivory_gifts
-  - **Area:** DX / Observability
-  - **Why:** `console.log("[geocode-debug]", ...)` emits to Cloudflare log streams on every geocode call, polluting production logs.
-  - **Acceptance:**
-    - Debug `console.log` removed from geocode route
-    - Replaced with structured `event_logs` entry if the event is worth keeping
-  - **Priority:** high
-  - **Notes:** `src/app/api/geocode/route.ts`
-
-### All Repos
-
-- [ ] **Publish `api-middleware` to npm**
-  - **Repo(s):** api-middleware, olive_and_ivory_api, olive_and_ivory_gifts, admin_olive_and_ivory_gifts
-  - **Area:** DX / Infra
-  - **Why:** All three apps depend on `api-middleware` via a git ref. Git deps are not scanned by `npm audit`, have slower installs, and make version bumps manual and error-prone.
-  - **Acceptance:**
-    - Package published to npm (private scope `@harloldholt/api-middleware` or public)
-    - All three consumer `package.json` files updated to npm ref
-    - `npm audit` now covers the package
-  - **Priority:** high
-
----
-
-## Medium Priority
-
-### AI Assist
-
-- [ ] **Add schema caching strategy for AI suggest responses**
-  - **Repo(s):** olive_and_ivory_api, admin_olive_and_ivory_gifts
-  - **Area:** AI Assist
-  - **Why:** Every AI suggest call fetches the output schema from the `ai_prompts` D1 table. Under high admin usage this adds per-request D1 reads. A short TTL cache would reduce latency and DB load.
-  - **Acceptance:**
-    - Schema fetched from D1 on cold start, cached in Worker memory with a 60s TTL
-    - Cache invalidated when an admin updates the prompt via settings
-    - Unit test covers cache hit and miss paths
-  - **Priority:** medium
-
-- [ ] **Pin schema version per AI run in `gift_ai_runs` table**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** AI Assist
-  - **Why:** `gift_ai_runs` records store `prompt_id` but not the schema version at time of the run. If the output schema is changed in `ai_prompts`, old runs become ambiguous — it is unclear whether a historical output conformed to the current or an older schema.
-  - **Acceptance:**
-    - `gift_ai_runs` table gains a `schema_version` or `prompt_version_hash` column (migration required)
-    - API populates this field on every AI run insert
-    - Admin AI run history view shows schema version
-  - **Priority:** medium
-
-- [ ] **Add token usage and retry count telemetry to AI run logs**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** AI Assist / Observability
-  - **Why:** No visibility into OpenAI token consumption per run. This makes it impossible to audit costs, detect runaway prompts, or set sensible limits.
-  - **Acceptance:**
-    - `gift_ai_runs.input_tokens`, `output_tokens`, `total_tokens`, `retry_count` columns added
-    - API populates these from OpenAI response metadata
-    - Aggregate token usage visible in admin `/logs` metrics or a dedicated view
-  - **Priority:** medium
-
-- [x] **Implement UI partial apply / field-level accept for AI suggestions**
-  - **Repo(s):** admin_olive_and_ivory_gifts
-  - **Area:** AI Assist / UX
-  - **Why:** Currently an admin must accept or reject an entire AI suggest response. They cannot accept the generated name but reject the description, requiring a manual re-edit.
-  - **Acceptance:**
-    - AI suggest UI shows each field (name, description, tags, etc.) independently
-    - Each field has an individual "Apply" button
-    - Accepted fields are written to the form; rejected fields retain the original value
-  - **Priority:** medium
-
-- [ ] **Persist AI suggestion history per collection entity**
-  - **Repo(s):** olive_and_ivory_api, admin_olive_and_ivory_gifts
-  - **Area:** AI Assist
-  - **Why:** AI runs are logged in `gift_ai_runs` for gifts but collection-level AI suggest history is not persisted. Admins cannot compare or revert to a previous suggestion.
-  - **Acceptance:**
-    - `collection_ai_runs` table created (or `ai_runs` generalised with `entity_type` column)
-    - API persists every collection AI suggest call with input, output, model, and prompt version
-    - Admin collection detail page shows last N AI suggestions with timestamps
-  - **Priority:** medium
-
-- [ ] **Add integration tests for AI output schema enforcement**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** AI Assist / Testing
-  - **Why:** The API validates OpenAI output against a Zod schema, but there are no automated tests that exercise schema validation failure paths — a silent regression would reach admins.
-  - **Acceptance:**
-    - Tests cover: valid output passes, missing required field rejected, extra field stripped, wrong type coerced or rejected
-    - Tests use a mocked OpenAI client (no real API calls in CI)
-  - **Priority:** medium
-
-### API Worker
-
-- [ ] **Split `coreRoutes.ts` into domain-scoped route files**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** DX
-  - **Why:** At 4,372 lines, `coreRoutes.ts` is a single-file monolith. It is slow to navigate, hard to review in PRs, and increases merge conflict surface area.
-  - **Acceptance:**
-    - Routes split into at minimum: `collections.ts`, `gifts.ts`, `orders.ts`, `media.ts`, `inventory.ts`, `delivery.ts`, `ai.ts`, `admin.ts`
-    - Shared helpers extracted to `src/lib/responseHelpers.ts`, `src/lib/logging.ts`, `src/lib/schemaCache.ts`
-    - `index.ts` registers each module; TypeScript compiles cleanly; all routes verified in production
-  - **Priority:** medium
-  - **Notes:** REVIEW-001-015 — full split plan in `docs/reviews/2026-03-01-day001-POST-api-orders.md#F`
-
-- [x] **Split `index.ts` into focused modules**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** DX
-  - **Why:** At 2,549 lines, the worker entry point mixes health checks, Stripe handling, logging routes, and app bootstrap. Each concern should live in its own file.
-  - **Acceptance:**
-    - Health routes extracted to `health.ts`
-    - Stripe webhook routes extracted to `stripe.ts`
-    - Log/metrics routes extracted to `logs.ts`
-    - `index.ts` reduced to app setup and route mounting
-  - **Priority:** medium
-
-- [ ] **Add OpenAI prompt length guard before sending to API**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** AI Assist / Security
-  - **Why:** The `ai_prompts` schema allows up to 24,000 character fields, but there is no validation that the assembled prompt stays within OpenAI's context limit. An oversized prompt causes an opaque 400 from OpenAI.
-  - **Acceptance:**
-    - Total token estimate calculated before sending (character count proxy is acceptable)
-    - Request rejected with a clear 422 error if over limit
-    - Limit configurable via env var or prompt metadata
-  - **Priority:** medium
-
-- [x] **Replace per-request `tableExists`/`getTableColumns` with a module-level schema cache**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Infra / Perf
-  - **Why:** Up to 6 `sqlite_master` queries were issued per order creation request.
-  - **Acceptance:**
-    - `_tableExistsCache` and `_tableColumnsCache` Maps at module scope in `coreRoutes.ts`
-    - Cache populated on first call per table; all subsequent calls return cached result
-    - Cache valid for isolate lifetime (new deployment = new isolate = fresh cache)
-  - **Priority:** medium
-  - **Notes:** REVIEW-001-008 — commit `4871213` (see Day 001 review)
-
-- [x] **Enforce max `delivery_date` (12 weeks in advance)**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Checkout
-  - **Why:** No maximum delivery date was enforced, allowing orders with delivery dates arbitrarily far in the future.
-  - **Acceptance:**
-    - Delivery date more than 12 weeks out returns 400 `validation_error`
-    - `MAX_DELIVERY_WEEKS = 12` constant in code
-  - **Priority:** medium
-  - **Notes:** REVIEW-001-013 — commit `4871213` (see Day 001 review)
-
-- [x] **Fix Sunday delivery block to use AEST timezone, not UTC**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Checkout
-  - **Why:** `getUTCDay() === 0` was coincidentally correct for calendar dates but was not self-documenting and would break if the date construction ever changed.
-  - **Acceptance:**
-    - `Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", weekday: "long" })` used in both `createOrderHandler` and `computeEarliestDeliveryDate`
-  - **Priority:** medium
-  - **Notes:** REVIEW-001-014 — commit `4871213` (see Day 001 review)
-
-- [x] **Enforce a minimum total for orders (reject $0 orders)**
-  - **Repo(s):** olive_and_ivory_api
-  - **Area:** Checkout / Security
-  - **Why:** No floor check on `total_cents` — a $0 total order could be written to D1 before Stripe rejection.
-  - **Acceptance:**
-    - `total_cents <= 0` returns 400 `validation_error` before any D1 writes
-  - **Priority:** medium
-  - **Notes:** REVIEW-001-016 — commit `4871213` (see Day 001 review)
-
-### Admin
-
-- [x] **Clean up `_page_backup.tsx`**
-  - **Repo(s):** admin_olive_and_ivory_gifts
-  - **Area:** DX
-  - **Why:** A backup page file exists at the app root. It should not be committed to the repo.
-  - **Acceptance:**
-    - File deleted or incorporated into the correct page
-    - No orphaned exports
-  - **Priority:** medium
-
 - [ ] **Write Playwright tests for critical admin flows**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Testing
@@ -457,7 +218,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Failing tests block merge
   - **Priority:** medium
 
-### Storefront
+#### Storefront
 
 - [ ] **Align React version between storefront and admin**
   - **Repo(s):** olive_and_ivory_gifts, admin_olive_and_ivory_gifts
@@ -479,20 +240,9 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ---
 
-## Low Priority / Polish
+### Low Priority / Polish
 
-### Admin App
-
-- [x] **Remove dead `GiftItemRow` type from `types.ts`**
-  - **Repo(s):** admin_olive_and_ivory_gifts
-  - **Area:** Code quality
-  - **Why:** `GiftItemRow` is exported from `src/lib/types.ts` but is never imported or used anywhere. The local `AttachedItem` type in `GiftProductsSection.tsx` covers the same shape. Dead export adds noise.
-  - **Acceptance:**
-    - `GiftItemRow` removed from `types.ts`
-    - TypeScript build passes
-  - **Priority:** low
-
-### All Repos
+#### All Repos
 
 - [ ] **Coordinate D1 migration strategy across repos**
   - **Repo(s):** all
@@ -524,7 +274,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - `wrangler`, `next`, `stripe`, `zod`, and `@cloudflare/*` packages covered
   - **Priority:** low
 
-### Admin
+#### Admin
 
 - [ ] **Add adversarial prompt injection test suite for AI Assist**
   - **Repo(s):** olive_and_ivory_api, admin_olive_and_ivory_gifts
@@ -537,7 +287,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** low
   - **Notes:** See SECURITY.md — "OpenAI Prompt Injection"
 
-### API Worker
+#### API Worker
 
 - [ ] **Define and enforce API versioning strategy**
   - **Repo(s):** olive_and_ivory_api
@@ -595,7 +345,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 - [ ] **Add D1 migration guardrails and rollback notes**
   - **Repo(s):** olive_and_ivory_api, admin_olive_and_ivory_gifts
-  - **Area:** AI Assist / Infra / DB
+  - **Area:** Infra / DB
   - **Why:** As AI Assist schema evolves (new columns in `ai_prompts`, `gift_ai_runs`, etc.), there is no documented rollback procedure if a migration goes wrong in production.
   - **Acceptance:**
     - Each future migration file includes a `-- rollback:` comment with the inverse SQL
@@ -603,7 +353,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - At least one rehearsed rollback against the staging D1 instance
   - **Priority:** low
 
-### Storefront
+#### Storefront
 
 - [ ] **Enable Next.js image optimisation via Cloudflare Images**
   - **Repo(s):** olive_and_ivory_gifts
@@ -624,11 +374,49 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Token lifecycle documented in code
   - **Priority:** low
 
-- [x] **Remove `BRAND_DEBUG` flag from `Header.tsx`**
-  - **Repo(s):** olive_and_ivory_gifts
-  - **Area:** DX
-  - **Why:** A debug flag for layout outlines is hardcoded to `false` but still present in production code. Dead code should be removed.
-  - **Acceptance:**
-    - `BRAND_DEBUG` constant and all conditional styling removed
-    - No visual change in production
-  - **Priority:** low
+---
+
+## Completed
+
+### Storefront — Browse Page UX
+
+- [x] **Auto-apply filters + Settle Timer (1s)** — olive_and_ivory_gifts
+- [x] **Async Route Updates + Non-blocking grids** — olive_and_ivory_gifts
+- [x] **Collapsible sidebar + Compact Summary** — olive_and_ivory_gifts
+- [x] **Selected Filters strip + Clear all** — olive_and_ivory_gifts
+- [x] **UI Polish (Grid density, hover card)** — olive_and_ivory_gifts
+
+### API Worker
+
+- [x] **Complete `collection_items` → `gift_inventory_items` migration cutover** — olive_and_ivory_api
+- [x] **Verify HMAC nonce uniqueness enforcement** — olive_and_ivory_api, api-middleware
+- [x] **Log warning when Stripe event orderId cannot be resolved** — olive_and_ivory_api · REVIEW-002-003
+- [x] **Add explicit event type allowlist to Stripe webhook handler** — olive_and_ivory_api · REVIEW-002-004
+- [x] **Exempt Stripe webhook from global rate limit** — olive_and_ivory_api, api-middleware · REVIEW-002-005
+- [x] **Implement or remove `/shipping/details` endpoint** — olive_and_ivory_api
+- [x] **Register POST method on `/api/orders` in route registry** — olive_and_ivory_api · REVIEW-001-001, commit `00ffdfb`
+- [x] **Validate `success_url`/`cancel_url` before passing to Stripe** — olive_and_ivory_api · REVIEW-001-002, commit `00ffdfb`
+- [x] **Add email format validation to order creation** — olive_and_ivory_api · REVIEW-001-003, commit `00ffdfb`
+- [x] **Add max-length enforcement for all order string fields** — olive_and_ivory_api · REVIEW-001-004, commit `00ffdfb`
+- [x] **Wrap order_items batch INSERT in try/catch with compensating rollback** — olive_and_ivory_api · REVIEW-001-005, commit `00ffdfb`
+- [x] **Log Stripe checkout session creation failures** — olive_and_ivory_api · REVIEW-001-006, commit `00ffdfb`
+- [x] **Add active/visible filter to collection SELECT in order creation** — olive_and_ivory_api · REVIEW-001-007, commit `4871213`
+- [x] **Replace per-request `tableExists`/`getTableColumns` with a module-level schema cache** — olive_and_ivory_api · REVIEW-001-008, commit `4871213`
+- [x] **Redact PII fields from audit log order payloads** — olive_and_ivory_api · REVIEW-001-010, commit `4871213`
+- [x] **Enforce max `delivery_date` (12 weeks in advance)** — olive_and_ivory_api · REVIEW-001-013, commit `4871213`
+- [x] **Fix Sunday delivery block to use AEST timezone, not UTC** — olive_and_ivory_api · REVIEW-001-014, commit `4871213`
+- [x] **Enforce a minimum total for orders (reject $0 orders)** — olive_and_ivory_api · REVIEW-001-016, commit `4871213`
+- [x] **Split `index.ts` into focused modules** — olive_and_ivory_api · 2026-03-02
+
+### Admin
+
+- [x] **Remove deprecated `/api/admin/collections/[id]/ai-assist` route alias** — admin_olive_and_ivory_gifts, olive_and_ivory_api
+- [x] **Fix admin app page metadata (title / description)** — admin_olive_and_ivory_gifts
+- [x] **Implement UI partial apply / field-level accept for AI suggestions** — admin_olive_and_ivory_gifts
+- [x] **Clean up `_page_backup.tsx`** — admin_olive_and_ivory_gifts
+- [x] **Remove dead `GiftItemRow` type from `types.ts`** — admin_olive_and_ivory_gifts
+
+### Storefront
+
+- [x] **Remove geocode debug logging from production** — olive_and_ivory_gifts · `src/app/api/geocode/route.ts`
+- [x] **Remove `BRAND_DEBUG` flag from `Header.tsx`** — olive_and_ivory_gifts
