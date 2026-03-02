@@ -12,6 +12,8 @@
 - [x] **Collapsible sidebar + Compact Summary** — olive_and_ivory_gifts
 - [x] **Selected Filters strip + Clear all** — olive_and_ivory_gifts
 - [x] **UI Polish (Grid density, hover card)** — olive_and_ivory_gifts
+- [x] **Collapsible sidebar padding fix** — olive_and_ivory_gifts
+- [x] **Add Products & Collections facet filtering** — olive_and_ivory_gifts, olive_and_ivory_api
 
 ### API Worker
 
