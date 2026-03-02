@@ -83,6 +83,23 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Rate limited at middleware level
   - **Priority:** high
 
+- [ ] **Cache `tableExists` results in `browse.ts`**
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Infra / Perf
+  - **Why:** `getBrowseItems` calls `tableExists` 8 times per invocation (8 separate `sqlite_master` queries). `page.tsx` calls `getBrowseItems` twice when filters are active (once for results, once for unfiltered facets), producing 16 `sqlite_master` queries per filtered page load. The same pattern was fixed in `coreRoutes.ts` as REVIEW-001-008.
+  - **Acceptance:**
+    - Module-level cache Map in `browse.ts` memoises `tableExists` results for the isolate lifetime
+    - All 8 `tableExists` calls hit the cache after the first request
+  - **Priority:** high
+
+- [ ] **Remove `console.info` production log noise from `browse.ts`**
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Observability
+  - **Why:** Two `console.info` calls fire inside `getBrowseItems` on every call. With the double-call on filtered pages, this emits 4 info log lines per page view in production, polluting log streams. Same class as the geocode debug logging already removed.
+  - **Acceptance:**
+    - `browse.query` and `browse.results` console.info calls removed or replaced with a structured event log written once per request at an appropriate level
+  - **Priority:** medium
+
 #### All Repos
 
 - [ ] **Publish `api-middleware` to npm**
