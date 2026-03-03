@@ -1,10 +1,12 @@
 # Maintenance Checklist
 
-> Last updated: 2026-02-28
+> Last updated: 2026-03-03
 > Owner: repo agent / Yuri
 > Scope: Recurring dev and deploy checklists
 
 Use this when actively developing across the repos. Tick off items before pushing to production or after a significant batch of changes.
+
+Local command reference: [LOCAL_TESTING.md](./LOCAL_TESTING.md)
 
 ---
 
