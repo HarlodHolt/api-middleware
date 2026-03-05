@@ -1,6 +1,6 @@
 # Outstanding Tasks & Improvements
 
-> Last updated: 2026-03-02
+> Last updated: 2026-03-05
 > Owner: repo agent / Yuri
 > Scope: Task backlog for the Olive & Ivory Gifts project
 
@@ -49,6 +49,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### Admin
 
+
 - [ ] **Migrate admin from `@cloudflare/next-on-pages` to `@opennextjs/cloudflare`**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Infra / DX
@@ -83,22 +84,16 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Rate limited at middleware level
   - **Priority:** high
 
-- [ ] **Cache `tableExists` results in `browse.ts`**
+- [ ] **Replace remaining browse page console errors with structured event logs**
   - **Repo(s):** olive_and_ivory_gifts
-  - **Area:** Infra / Perf
-  - **Why:** `getBrowseItems` calls `tableExists` 8 times per invocation (8 separate `sqlite_master` queries). `page.tsx` calls `getBrowseItems` twice when filters are active (once for results, once for unfiltered facets), producing 16 `sqlite_master` queries per filtered page load. The same pattern was fixed in `coreRoutes.ts` as REVIEW-001-008.
+  - **Area:** Observability / Browse
+  - **Why:** Browse result logging now goes through `event_logs`, but the server-rendered browse page still uses raw `console.error` for `browse.page.error` and unbiased-facets failures. That keeps part of browse diagnostics outside the core log pipeline.
   - **Acceptance:**
-    - Module-level cache Map in `browse.ts` memoises `tableExists` results for the isolate lifetime
-    - All 8 `tableExists` calls hit the cache after the first request
+    - `browse.page.error` writes to `event_logs` via the existing `writeEventLog` helper
+    - unbiased-facets fetch failures are either logged structurally or intentionally suppressed
+    - no raw browse-related `console.error` remains in the browse page path
   - **Priority:** high
 
-- [ ] **Remove `console.info` production log noise from `browse.ts`**
-  - **Repo(s):** olive_and_ivory_gifts
-  - **Area:** Observability
-  - **Why:** Two `console.info` calls fire inside `getBrowseItems` on every call. With the double-call on filtered pages, this emits 4 info log lines per page view in production, polluting log streams. Same class as the geocode debug logging already removed.
-  - **Acceptance:**
-    - `browse.query` and `browse.results` console.info calls removed or replaced with a structured event log written once per request at an appropriate level
-  - **Priority:** medium
 
 #### All Repos
 
@@ -115,6 +110,18 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 ---
 
 ### Medium Priority
+
+#### Storefront
+
+- [ ] **Add `gallery_image_keys` column to `collections` table or remove from schema docs**
+  - **Repo(s):** olive_and_ivory_gifts, docs
+  - **Area:** Schema / Data
+  - **Why:** `collections` table in D1 does not have a `gallery_image_keys` column but `DATABASE_DESIGN.md` lists it. The storefront query now uses `NULL AS gallery_image_keys` as a workaround. The column should either be added via migration (if gallery images are needed) or removed from the docs to reflect reality.
+  - **Acceptance:**
+    - If adding: migration adds `gallery_image_keys TEXT` to `collections`; storefront query updated to select `c.gallery_image_keys`; admin UI can populate it
+    - If removing: `DATABASE_DESIGN.md` ERD and table notes updated; `NULL AS gallery_image_keys` workaround noted as permanent
+  - **Priority:** medium
+  - **Notes:** Root cause of silent query failure in `getCollectionVariantTiles` (fixed 2026-03-03 with NULL workaround)
 
 #### AI Assist
 
@@ -190,7 +197,58 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Limit configurable via env var or prompt metadata
   - **Priority:** medium
 
+- [x] **Require server-owned redirect allowlist for Stripe checkout URLs** · REVIEW-005-001
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Payments / Security
+  - **Why:** Redirect validation currently falls back to request-supplied `site_base_url` when `SITE_BASE_URL` is unset. That weakens the trust boundary and allows signed callers to define their own Stripe redirect host.
+  - **Acceptance:**
+    - Redirect allowlist source is server-owned only (`SITE_BASE_URL` or explicit env allowlist)
+    - `site_base_url` from request payload is ignored for allowlist decisions
+    - Tests confirm a signed payload with attacker-controlled host is rejected
+  - **Priority:** medium
+  - **Notes:** Day 005 review — `createStripeCheckoutSession()`
+
+- [x] **Preserve Stripe error object details in checkout session failures** · REVIEW-005-002
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Payments / Observability
+  - **Why:** Current `stripe_upstream_error` extraction stringifies Stripe error objects, producing low-signal messages like `[object Object]` and obscuring root-cause analysis.
+  - **Acceptance:**
+    - Error parsing prefers `error.message`, `error.type`, `error.code`, and request ID fields when present
+    - Event logs include structured Stripe failure context without leaking secrets
+    - Checkout failure responses remain backward-compatible for callers
+  - **Priority:** medium
+  - **Notes:** Day 005 review — `createStripeCheckoutSession()`
+
 #### Admin
+
+- [x] **Add audit log to logout route** · REVIEW-003-009
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Observability / Security
+  - **Why:** `POST /api/auth/logout` performs a session deletion with no audit log. Admin session terminations should be traceable.
+  - **Acceptance:**
+    - `auth.logout` event logged with `user_id`, first 8 chars of token hash, and IP address
+  - **Priority:** medium
+  - **Notes:** REVIEW-003-009 — Day 003 review
+
+- [x] **Remove `debug` fields from `/api/auth/me` production response** · REVIEW-003-010
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Security
+  - **Why:** `GET /api/auth/me` returns `debug: { has_access_header, access_email }` to all callers, leaking Cloudflare Access header information.
+  - **Acceptance:**
+    - `debug` block removed from the response, or gated behind `env.DEBUG_MODE === 'true'`
+  - **Priority:** medium
+  - **Notes:** REVIEW-003-010 — Day 003 review
+
+- [x] **Implement or remove CSRF token in sessions table** · REVIEW-003-011
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Security / Auth
+  - **Why:** `sessions.csrf_token` is generated and stored on every session creation but never read or validated. CSRF protection relies solely on `sameSite: 'lax'` cookie attribute. If cross-site protection is ever bypassed, there is no secondary defence.
+  - **Acceptance:**
+    - Decision documented: either implement CSRF token validation on all state-changing admin API routes, or remove the column and generation
+    - If implementing: all POST/PUT/DELETE admin API routes validate `X-CSRF-Token` header against the session's stored token
+    - If removing: D1 migration drops the column; `createSession` code updated
+  - **Priority:** medium
+  - **Notes:** REVIEW-003-011 — Day 003 review; M-effort if implementing across all admin routes
 
 - [ ] **Refactor Media panel to compact row layout**
   - **Repo(s):** admin_olive_and_ivory_gifts
@@ -236,6 +294,37 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
 
 #### Storefront
+
+- [ ] **Avoid duplicate browse queries for unfiltered facets**
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Performance / Browse
+  - **Why:** `/browse` currently calls `getBrowseItems(...)` once for results and a second time for unbiased facets whenever filters are active. This doubles DB work for a common filtered path.
+  - **Acceptance:**
+    - page load performs one browse query for the main result set
+    - unbiased facets are derived without a second full query OR are fetched through a cheaper dedicated facet query
+    - filtered browse latency is measurably lower than the current dual-query path
+  - **Priority:** medium
+
+- [ ] **Refactor `BrowseInteractive` into smaller feature modules**
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** DX / Browse
+  - **Why:** `BrowseInteractive.tsx` is carrying filter orchestration, chip rendering, pagination controls, and result rendering in one large client component. It already has dead code warnings (`BrowseItem` import, `hasActiveFilters`) and is harder to maintain safely.
+  - **Acceptance:**
+    - `BrowseInteractive.tsx` is split into smaller focused components/hooks
+    - dead code warnings are removed
+    - no single new component exceeds the 500-line guardrail
+    - browse behavior remains unchanged
+  - **Priority:** medium
+
+- [ ] **Tune browse filter commit behavior and debounce UX**
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** UX / Browse
+  - **Why:** The current 1000ms debounce on search/filter updates is conservative and can make the interface feel sluggish. The commit behavior should be reviewed so text search, checkbox filters, and price changes feel responsive without spamming route updates.
+  - **Acceptance:**
+    - debounce timing reviewed and reduced where appropriate
+    - immediate vs deferred filter commits are intentional per control type
+    - route updates remain stable and do not regress back/forward navigation
+  - **Priority:** medium
 
 - [ ] **Align React version between storefront and admin**
   - **Repo(s):** olive_and_ivory_gifts, admin_olive_and_ivory_gifts
@@ -349,7 +438,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** low
   - **Notes:** REVIEW-001-012 — Day 001 review
 
-- [ ] **Define and enforce a data retention policy for `orders` and audit log tables**
+- [x] **Define and enforce a data retention policy for `orders` and audit log tables**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Security / Legal
   - **Why:** `orders` and audit log tables grow indefinitely with no retention policy. Full customer PII (name, email, phone, delivery address) is stored in both tables. Australian Privacy Act requires a defined retention and deletion policy.

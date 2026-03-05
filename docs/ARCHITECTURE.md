@@ -1,6 +1,6 @@
 # Architecture — How the Repos Interlink
 
-> Last updated: 2026-02-28
+> Last updated: 2026-03-05
 > Owner: repo agent / Yuri
 > Scope: System architecture and request flows
 
@@ -53,10 +53,13 @@ METHOD\n
 - `x-oi-nonce` — Unique UUID per request
 - `x-oi-signature` — Base64-encoded HMAC-SHA256 signature
 - `x-correlation-id` — Propagated for tracing
+- `cf-connecting-ip` / `x-forwarded-for` / `user-agent` — forwarded on server-side proxies to preserve client provenance in API logs
 
 **Secret:** `HMAC_SHARED_SECRET` env var, set on both Pages and the Worker.
 
 The `api-middleware` package provides `withAuthHmac()` on the API side and `createHmacSignature()` / `verifyHmacSignature()` helpers on the client side.
+
+Only routes explicitly classified as `public` bypass HMAC. Undocumented API worker routes now default to requiring HMAC, which prevents route-registry drift from creating accidental public access.
 
 ---
 
@@ -101,12 +104,66 @@ This is a performance optimisation — avoids double-hop for read-only data.
 
 ## Admin → API: Full CRUD
 
-The admin site proxies all data operations to the API worker. Nothing is written to D1 directly from the admin — it all goes through the worker.
+The admin site proxies most business CRUD operations to the API worker.  
+Exception: admin auth/session routes (`/api/auth/*`) operate directly on admin-owned `users` / `sessions` tables in D1.
 
 Writes flow:
 ```
 Admin browser → Admin Next.js route → [HMAC sign] → API Worker → D1
 ```
+
+For money-moving mutations such as `POST /api/orders/:id/refund`, the admin proxy still signs the request the same way, but the worker now also uses a deterministic Stripe idempotency key and records successful refunds in an `order_refunds` ledger before local totals are considered reconciled.
+
+---
+
+## Admin Authentication
+
+The admin app has two parallel paths for establishing a session. Both paths create an identical session row in D1 and set the same `httpOnly` + `secure` cookie.
+
+### Path 1 — Password Login
+
+```
+Browser POST /api/auth/login  { email, password }
+    ↓ In-handler rate limit (10/min per IP)
+    ↓ Input validation (email ≤ 254 chars, password ≤ 1024 chars)
+    ↓ D1: SELECT user WHERE email = ?
+    ↓ PBKDF2-SHA256 verification (100,000 iterations, constant-time compare)
+    ↓ D1: INSERT INTO sessions (hashed token, 7-day expiry)
+    ↓ Set httpOnly session cookie → browser
+```
+
+### Path 2 — Cloudflare Access Bootstrap
+
+When the admin site is behind Cloudflare Access, the `cf-access-authenticated-user-email` header is present on every request. The middleware detects a missing session cookie and redirects to `/api/auth/access-session`, which:
+
+```
+GET /api/auth/access-session?returnTo=/
+    ↓ Read cf-access-authenticated-user-email header
+    ↓ D1: SELECT user WHERE LOWER(email) = accessEmail
+    ↓ D1: INSERT INTO sessions (same as password path)
+    ↓ Set httpOnly session cookie
+    ↓ Redirect browser to returnTo path
+```
+
+This path bypasses password entry entirely — Cloudflare Access is the identity assertion. Only users who already exist in the `users` table are granted a session (Access email is used for lookup, not user creation).
+
+### Session Lifecycle
+
+| Property | Value |
+|----------|-------|
+| Token format | 32-char hex UUID (122 random bits) |
+| Token storage | SHA-256 hash stored in `sessions.session_token_hash` |
+| Cookie name | `oi_admin_session` |
+| Cookie flags | `httpOnly`, `secure`, `sameSite: lax` |
+| Expiry | 7 days from creation |
+| Validation | `validateSession()` joins `sessions` + `users`, checks `expires_at > now()` |
+| Revocation | `deleteSession()` on logout; per-token deletion from `sessions` table |
+
+The legacy `sessions.csrf_token` column was removed in migration `0060_drop_sessions_csrf_token.sql` after confirming no route validated it.
+
+### Middleware Coverage
+
+The Next.js middleware (`src/middleware.ts`) matcher excludes `api/auth/*` from processing — auth routes do not require a prior session. All other routes redirect to `/login` or return 401 if the session cookie is absent or invalid. The session is NOT validated in middleware (cookie presence only); full token validation happens per-route via `auth.validateSession()` on routes that require it.
 
 ---
 
@@ -134,9 +191,9 @@ Request
 ```
 1. Customer fills checkout form (storefront)
 2. POST /api/checkout/create (storefront Next.js route)
-3. [HMAC sign] POST /stripe/create-checkout-session (API worker)
-4. API creates Stripe checkout session, returns checkout_url
-5. Storefront redirects browser to checkout_url (Stripe-hosted page)
+3. [HMAC sign] POST /api/orders (API worker)
+4. API creates the order and (when Stripe is configured) creates Stripe checkout session
+5. Storefront redirects browser to returned `checkout_url` (Stripe-hosted page)
 6. Customer pays on Stripe
 7. Stripe fires webhook → POST /api/stripe/webhook (storefront proxy)
 8. Storefront proxies webhook → POST /stripe/webhook (API worker)

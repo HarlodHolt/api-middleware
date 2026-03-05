@@ -19,6 +19,9 @@
 - [x] **Constant-time comparison in `verifyPassword`** — admin_olive_and_ivory_gifts · REVIEW-003-004 · 2026-03-03
 - [x] **`createSession` throws on DB execute failure** — admin_olive_and_ivory_gifts · REVIEW-003-006 · 2026-03-03
 - [x] **Replace `SELECT *` with explicit columns in user lookup; normalise email case** — admin_olive_and_ivory_gifts · REVIEW-003-007/008 · 2026-03-03
+- [x] **Add audit log to logout route** — admin_olive_and_ivory_gifts · REVIEW-003-009 · 2026-03-05
+- [x] **Remove debug fields from `/api/auth/me` production response** — admin_olive_and_ivory_gifts · REVIEW-003-010 · 2026-03-05
+- [x] **Remove unused `sessions.csrf_token` flow (migration + session create fallback)** — admin_olive_and_ivory_gifts · REVIEW-003-011 · 2026-03-05
 
 ### Storefront — Browse Performance & Observability
 
@@ -59,6 +62,9 @@
 - [x] **Default-deny undocumented API worker routes and register the refund endpoint** — olive_and_ivory_api · REVIEW-004-001 · 2026-03-03
 - [x] **Make Stripe refunds idempotent and replay-safe with an `order_refunds` ledger** — olive_and_ivory_api · REVIEW-004-002/003 · 2026-03-03
 - [x] **Log rejected and upstream-failed refund attempts** — olive_and_ivory_api · REVIEW-004-004 · 2026-03-03
+- [x] **Require server-owned redirect allowlist for Stripe checkout URLs** — olive_and_ivory_api · REVIEW-005-001 · 2026-03-05
+- [x] **Preserve Stripe error object details in checkout session failures** — olive_and_ivory_api · REVIEW-005-002 · 2026-03-05
+- [x] **Define retention policy and manual cleanup procedure for `orders`/`audit_logs`/`event_logs`** — docs · REVIEW-001-017 · 2026-03-05
 
 ### Admin
 

@@ -1,6 +1,6 @@
 # Maintenance Checklist
 
-> Last updated: 2026-03-03
+> Last updated: 2026-03-05
 > Owner: repo agent / Yuri
 > Scope: Recurring dev and deploy checklists
 
@@ -107,6 +107,28 @@ Do this whenever a D1 schema change is needed.
 - [ ] Check OpenAI usage and billing — AI endpoints can incur unexpected costs
 - [ ] Rotate `HMAC_SHARED_SECRET` if there's any suspicion it has been exposed
 - [ ] Check Google Places API quotas in Google Cloud Console
+
+### Quarterly Data Retention Runbook (REVIEW-001-017)
+
+- [ ] Confirm current date/time and retention cutoff points:
+  - `audit_logs`: 90 days
+  - `event_logs`: 30 days
+  - `orders`: 7 years (requires finance/legal hold confirmation)
+- [ ] Backup D1 before destructive cleanup.
+- [ ] Run retention SQL against production D1:
+  ```sql
+  DELETE FROM audit_logs
+  WHERE datetime(created_at) < datetime('now', '-90 days');
+
+  DELETE FROM event_logs
+  WHERE datetime(created_at) < datetime('now', '-30 days');
+  ```
+- [ ] For `orders` older than 7 years, confirm legal/tax hold status before deletion:
+  ```sql
+  DELETE FROM orders
+  WHERE datetime(created_at) < datetime('now', '-7 years');
+  ```
+- [ ] Record execution date and row counts removed in the deployment log.
 
 ---
 

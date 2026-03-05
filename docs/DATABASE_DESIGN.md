@@ -14,9 +14,10 @@ via inline `CREATE TABLE IF NOT EXISTS` guards in `coreRoutes.ts` on first use.
 | **Gift Components** | `gift_inventory_items`, `gift_media`, `inventory_items`, `inventory_stock`, `inventory_stock_adjustments` |
 | **Variants (legacy)** | `collection_variants`, `collection_variant_items` |
 | **Storefront** | `hero_slides`, `featured_collections`, `newsletter_signups`, `settings`, `delivery_zones` |
-| **Commerce** | `orders`, `order_items` |
+| **Commerce** | `orders`, `order_items`, `order_refunds` |
 | **AI** | `ai_prompts`, `gift_ai_runs` |
 | **Observability / Auth** | `event_logs`, `audit_logs`, `api_nonces`, `api_rate_limits` |
+| **Admin Identity** | `users`, `sessions` |
 
 ---
 
@@ -256,6 +257,17 @@ erDiagram
     INTEGER line_total_cents
   }
 
+  order_refunds {
+    TEXT stripe_refund_id PK
+    TEXT order_id FK
+    TEXT idempotency_key
+    INTEGER amount_cents
+    TEXT status
+    TEXT request_reason
+    TEXT created_at
+    TEXT updated_at
+  }
+
   %% ── AI ─────────────────────────────────────────────────────
 
   ai_prompts {
@@ -337,6 +349,25 @@ erDiagram
     INTEGER request_count
   }
 
+  %% ── ADMIN IDENTITY ─────────────────────────────────────────
+
+  users {
+    TEXT id PK
+    TEXT email
+    TEXT password_hash
+    TEXT role
+    TEXT created_at
+  }
+
+  sessions {
+    TEXT id PK
+    TEXT user_id FK
+    TEXT session_token_hash
+    TEXT expires_at
+    TEXT created_at
+    TEXT last_seen_at
+  }
+
   %% ── RELATIONSHIPS ───────────────────────────────────────────
 
   collections ||--o{ gifts              : "has (collection_id)"
@@ -359,7 +390,10 @@ erDiagram
   inventory_items ||--o{ inventory_stock_adjustments : "stock log"
 
   orders ||--o{ order_items : "contains"
+  orders ||--o{ order_refunds : "refunds"
   order_items }o--|| collections : "collection ref"
+
+  users ||--o{ sessions : "has"
 ```
 
 ---
@@ -435,6 +469,12 @@ replay deduplication (duplicate events are skipped if this column already matche
 **`order_items`** — Line items per order. References `collections` (not gifts/items) since
 the storefront treats a collection as the purchasable unit.
 
+**`order_refunds`** — Stripe refund ledger keyed by `stripe_refund_id`. Each row records
+the originating `order_id`, the deterministic idempotency key used for the refund attempt,
+the refunded amount, and the latest Stripe status. Migration `0013_order_refunds_ledger.sql`
+also adds a trigger that increments `orders.refunded_cents` on first insert, making local
+refund totals replay-safe when the same Stripe refund is observed again.
+
 ### AI
 
 **`ai_prompts`** — Reusable prompt templates stored in D1 (not hardcoded). `key` is a
@@ -443,6 +483,12 @@ Schema for structured OpenAI outputs.
 
 **`gift_ai_runs`** — Audit trail of every AI assist invocation on a gift. Stores the
 filled prompt, raw input/output, model, and latency.
+
+### Admin Identity
+
+**`users`** — Admin user accounts. `role` values: `super_admin`, `admin`. `password_hash` format: `{salt_hex}:{hash_hex}` (PBKDF2-SHA256, 100,000 iterations, 16-byte salt, 32-byte output). Managed exclusively by the admin app. The bootstrap route (`POST /api/auth/bootstrap`) creates the first `super_admin` record if the table is empty.
+
+**`sessions`** — Active admin sessions. `session_token_hash` is the SHA-256 hex digest of the raw token stored in the browser cookie — the raw token is never persisted. The unused `csrf_token` column was removed by admin migration `0060_drop_sessions_csrf_token.sql` (REVIEW-003-011). Sessions expire after 7 days (`expires_at`). Expired sessions are not currently pruned automatically; a cleanup task is tracked in `docs/TASKS.md` (Session Token Storage).
 
 ### Observability / Auth
 
@@ -479,6 +525,7 @@ There are two migration sequences that write to the same D1 database.
 | `0009_gift_media_library.sql` | `gift_media` |
 | `0010_orders_delete_refund.sql` | `deleted_at`, `refunded_cents`, `cancel_reason` on `orders` |
 | `0011_hero_slides.sql` | `hero_slides` |
+| `0013_order_refunds_ledger.sql` | `order_refunds`, replay-safe refund trigger |
 
 Core business tables (`collections`, `gifts`, `orders`, etc.) were created directly in the
 D1 console and are managed by `CREATE TABLE IF NOT EXISTS` guards in `coreRoutes.ts`.
@@ -494,5 +541,6 @@ Key migrations in the admin sequence (selected entries):
 | `0047_inventory_items_backfill_from_legacy_items.sql` | backfill `inventory_items` from legacy `items` |
 | `0054_drop_legacy_items_table.sql` | **drops** `items` table |
 | `0055_gift_inventory_items.sql` | `gift_inventory_items` (canonical BOM); backfills from `gift_items` |
+| `0060_drop_sessions_csrf_token.sql` | removes unused `sessions.csrf_token` |
 
 `gift_items` (created in 0035) still exists in D1 but no code reads or writes it since migration 0055.
