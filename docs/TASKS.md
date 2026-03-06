@@ -1,6 +1,6 @@
 # Outstanding Tasks & Improvements
 
-> Last updated: 2026-03-05
+> Last updated: 2026-03-06
 > Owner: repo agent / Yuri
 > Scope: Task backlog for the Olive & Ivory Gifts project
 
@@ -27,6 +27,25 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### API Worker
 
+- [ ] **Split `index.ts` below 500 lines** · LOC-API-001
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** DX / Architecture
+  - **Why:** `index.ts` is 817 lines after the March 2026 extraction. It still contains route registration, scheduled handler, environment validation, and middleware wiring in one file.
+  - **Acceptance:**
+    - Remaining route registration and scheduled handler moved to dedicated modules
+    - `index.ts` becomes a thin bootstrap/wiring file ≤150 lines
+    - TypeScript compiles cleanly; all routes smoke-tested after extraction
+  - **Priority:** high
+
+- [ ] **Split `logs.ts` below 500 lines** · LOC-API-002
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** DX / Architecture
+  - **Why:** `logs.ts` is 726 lines — 1.5× the limit. Log route handlers and any aggregation/query helpers should be in separate files.
+  - **Acceptance:**
+    - Query helpers and route handlers separated into focused modules
+    - Each module ≤500 lines
+  - **Priority:** high
+
 - [ ] **Add request timeout handling on all outbound fetch calls**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Infra
@@ -49,6 +68,42 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### Admin
 
+- [ ] **Split `orders/client.tsx` (orders list) into focused modules** · LOC-ADM-001
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** The orders list client component is 1,073 lines — 2.1× the limit. It contains the full page, 6 modal components (CancelModal, RefundModal, DeleteModal, HardDeleteConfirmModal, StockActionModal, RestockItemsModal), and all page-level state. Modals especially belong in separate files.
+  - **Acceptance:**
+    - Modal components extracted to `src/app/(dashboard)/orders/modals/` (one file per modal or a grouped `order-modals.tsx`)
+    - Page-level state/handlers optionally extracted to a hook
+    - `client.tsx` reduced to ≤500 lines with focused page responsibility
+  - **Priority:** high
+
+- [ ] **Split `InventoryListPage.tsx` below 500 lines** · LOC-ADM-002
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** `InventoryListPage.tsx` is 791 lines — 1.6× the limit. Contains table, filters, inline editor, and modals in one component.
+  - **Acceptance:**
+    - Extracted sub-components or hooks reduce the file to ≤500 lines
+    - No new file exceeds the limit
+  - **Priority:** high
+
+- [ ] **Split `CollectionMetadataForm.tsx` below 500 lines** · LOC-ADM-003
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** `CollectionMetadataForm.tsx` is 785 lines — 1.6× the limit. Mixes form sections, AI assist, SEO fields, and preview logic.
+  - **Acceptance:**
+    - Focused sub-sections (AI, SEO, preview) extracted to child components or hooks
+    - Parent file reduced to ≤500 lines
+  - **Priority:** high
+
+- [ ] **Split `systemHealth.ts` below 500 lines** · LOC-ADM-004
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** `systemHealth.ts` is 774 lines — 1.5× the limit. Mixes multiple system health check categories in one module.
+  - **Acceptance:**
+    - Health check logic split by domain (e.g. DB checks, API checks, storage checks)
+    - Each module ≤500 lines
+  - **Priority:** high
 
 - [ ] **Migrate admin from `@cloudflare/next-on-pages` to `@opennextjs/cloudflare`**
   - **Repo(s):** admin_olive_and_ivory_gifts
@@ -73,6 +128,16 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
 
 #### Storefront
+
+- [ ] **Split `CheckoutPageClient.tsx` into focused checkout sections** · LOC-SF-001
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** At 1,235 lines, `CheckoutPageClient.tsx` is 2.5× the 500 LOC limit. It mixes address form, delivery date selection, Stripe initiation, order confirmation, and cart rendering in a single component.
+  - **Acceptance:**
+    - Split into focused child components or hooks (e.g. `AddressSection`, `DeliveryDateSection`, `CheckoutSummary`, `useCheckoutState`)
+    - No single new file exceeds 500 lines
+    - Existing checkout flow and Stripe integration unchanged
+  - **Priority:** high
 
 - [ ] **Implement `/contact` page form submission**
   - **Repo(s):** olive_and_ivory_gifts
@@ -340,6 +405,38 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Add image button always visible; keyboard accessible expand/collapse
   - **Priority:** medium
 
+- [ ] **Split `useAiAssistFlow.ts` below 500 lines** · LOC-ADM-005
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** `useAiAssistFlow.ts` is 694 lines — 1.4× the limit. A single hook doing this much state management is hard to test and reason about.
+  - **Acceptance:**
+    - Logical sub-flows (prompt selection, request lifecycle, result handling) split into narrower hooks
+    - `useAiAssistFlow` becomes a thin orchestrator ≤300 lines
+  - **Priority:** medium
+
+- [ ] **Split `useInventoryEditorState.ts` below 500 lines** · LOC-ADM-006
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** `useInventoryEditorState.ts` is 686 lines — 1.4× the limit. A single hook handling this much editor state makes extraction and testing difficult.
+  - **Acceptance:**
+    - Editor concerns split into focused sub-hooks (e.g. form state, save logic, media handling)
+    - No new file exceeds the limit
+  - **Priority:** medium
+
+- [ ] **Audit and reduce medium-oversized admin pages** · LOC-ADM-007
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** The following admin pages exceed 500 lines without individual split tasks:
+    - `(dashboard)/page.tsx` — 597 lines (dashboard home)
+    - `(dashboard)/logs/page.tsx` — 561 lines
+    - `components/system-health-widget.tsx` — 539 lines
+    - `(dashboard)/orders/[id]/client.tsx` — 523 lines
+    - `(dashboard)/gifts/page.tsx` — 509 lines
+  - **Acceptance:**
+    - Each file reviewed and either split to ≤500 lines or a justified exception documented
+    - Extracted helpers/sub-components follow single-responsibility rule
+  - **Priority:** medium
+
 - [ ] **Split GiftEditorForm into focused feature sections**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Editor UX / Maintainability
@@ -373,6 +470,25 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
 
 #### Storefront
+
+- [ ] **Split `data.ts` below 500 lines** · LOC-SF-002
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** `src/lib/data.ts` is 702 lines — 1.4× the limit. Mixes multiple data-fetching concerns for different page types.
+  - **Acceptance:**
+    - Data fetching helpers split by domain (e.g. `collections.ts`, `gifts.ts`, `homepage.ts`)
+    - Each module ≤500 lines
+  - **Priority:** medium
+
+- [ ] **Audit and reduce medium-oversized storefront lib files** · LOC-SF-003
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** The following storefront files exceed 500 lines without individual split tasks:
+    - `src/lib/orders.ts` — 573 lines
+    - `src/lib/browse.ts` — 522 lines
+  - **Acceptance:**
+    - Each file reviewed and either split to ≤500 lines or a justified exception documented
+  - **Priority:** medium
 
 - [ ] **Avoid duplicate browse queries for unfiltered facets**
   - **Repo(s):** olive_and_ivory_gifts
