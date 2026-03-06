@@ -130,6 +130,16 @@ Severity levels: **Critical** / **High** / **Medium** / **Low**
 **Risk:** There is no evidence of account lockout after repeated failed login attempts.
 **Recommendation:** Implement a lockout or exponential backoff after N failed login attempts for the same user account.
 
+### Latent IDOR on Order Routes
+**Repos:** `olive_and_ivory_api`
+**Risk:** All order route handlers (`GET`, `PUT`, `PATCH`, `DELETE /orders/:id`, `POST /orders/:id/refund`) accept the order `id` from the URL path with no scope or ownership check. Any HMAC-authenticated caller that knows or can enumerate an order ID can read or mutate any order. In the current single-tenant deployment this is acceptable. If the API ever extends to multi-tenant use, this becomes a direct IDOR without any code change.
+**Recommendation:** Document the single-tenant assumption explicitly. If multi-tenant support is ever added, introduce an owner/tenant scope check on all order route handlers before any other work proceeds. (REVIEW-007, 2026-03-03)
+
+### `PUT /orders/:id` Bypasses State Machine Guards
+**Repos:** `olive_and_ivory_api`
+**Risk:** `PATCH /api/orders/:id/status` enforces terminal state guards (delivered and cancelled orders cannot be transitioned to any other status). The parallel `PUT /api/orders/:id` handler also accepts a `status` field but does not enforce these guards — a delivered or cancelled order's status can be regressed to any other value via PUT.
+**Recommendation:** Apply identical terminal state transition guards to `updateOrderHandler`. See REVIEW-007-003 in `docs/TASKS.md`. (REVIEW-007, 2026-03-03)
+
 ---
 
 ## Security Strengths (Already Well Handled)

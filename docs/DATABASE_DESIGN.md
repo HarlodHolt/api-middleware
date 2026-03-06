@@ -465,6 +465,13 @@ Defaults are baked into code if the table is absent.
 tracks partial or full refunds. `payment_provider` values: `manual`, `stripe_checkout`.
 `stripe_event_id` stores the last Stripe event ID written to the row; used for webhook
 replay deduplication (duplicate events are skipped if this column already matches).
+`order_stock_restored` (INTEGER, 0/1) — flag set when inventory stock has been restored
+after an order cancellation. This flag is set atomically with the `status = 'cancelled'`
+UPDATE in `patchOrderStatusHandler`; however the stock upserts that precede the UPDATE are
+not yet wrapped in a transaction — a mid-sequence D1 failure can leave stock restored but
+the order non-cancelled (REVIEW-007-002). `cancel_reason` and `updated_at` are
+schema-conditional: their presence is checked per-request via `getTableColumns` because
+they were added in later migrations (`0010_orders_delete_refund.sql`).
 
 **`order_items`** — Line items per order. References `collections` (not gifts/items) since
 the storefront treats a collection as the purchasable unit.

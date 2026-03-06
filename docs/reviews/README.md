@@ -10,3 +10,4 @@ Reviews are generated daily per the schedule defined in [deep-dive-schedule.md](
 | 004 | 2026-03-03 | Route | `POST /api/orders/:id/refund` — Stripe refund execution for existing paid orders | Complete |
 | 005 | 2026-03-05 | Function | `createStripeCheckoutSession()` — Stripe checkout session request construction + upstream failure handling | Complete |
 | 006 | 2026-03-05 | System | Log Explorer observability audit — cross-repo logging coverage, payload quality, and API usage mapping | Complete |
+| 007 | 2026-03-03 | Route | `PATCH /api/orders/:id/status` — admin order status update with inventory restoration; includes 500 LOC split plan for `coreRoutes.ts` | Complete |

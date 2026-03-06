@@ -203,6 +203,22 @@ Request
 
 ---
 
+## Order Status State Machine
+
+Valid order statuses: `pending` → `paid` → `packed` → `out_for_delivery` → `delivered`
+
+Cancellation is permitted from any non-terminal state: any status except `delivered` or `cancelled` can be transitioned to `cancelled`.
+
+**Terminal states:** `delivered` and `cancelled` are terminal — no further status changes are permitted once an order reaches either state.
+
+**Dual update paths (REVIEW-007):**
+- `PATCH /api/orders/:id/status` — enforces terminal state guards; triggers `restoreOrderInventoryStock` on cancellation; preferred path for status changes
+- `PUT /api/orders/:id` — general order update; also accepts a `status` field but **does not enforce terminal state guards** (known deficiency — REVIEW-007-003)
+
+**Stock restoration:** When an order is cancelled, `inventory_stock.stock_on_hand` is incremented for each inventory item in the order. This restore runs before the `orders.status` UPDATE; the two are not currently wrapped in a transaction, creating a latent atomicity risk on transient D1 failures (REVIEW-007-002).
+
+---
+
 ## Image Storage Flow (R2)
 
 ```

@@ -107,6 +107,40 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - `npm audit` now covers the package
   - **Priority:** high
 
+- [ ] **Make order stock restore + status UPDATE atomic** · REVIEW-007-002
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Data Integrity
+  - **Why:** In `patchOrderStatusHandler`, `restoreOrderInventoryStock` runs N serial upserts before the `UPDATE orders SET status` executes. If the UPDATE fails after stock is restored, stock is permanently incremented but the order is not cancelled. A second cancel attempt will restore stock again.
+  - **Acceptance:**
+    - Stock restoration and order UPDATE execute atomically: either both succeed or neither is applied
+    - If using `db.batch()`: verify D1 batch semantics guarantee rollback on partial failure, or use a pre-check-then-batch approach that only runs if both can succeed
+    - `order_stock_restored` flag only set on confirmed order UPDATE success
+    - Failure path tested: if UPDATE throws, stock remains unchanged
+  - **Priority:** high
+  - **Notes:** REVIEW-007-002 — Day 007 review. `restoreOrderInventoryStock` is at coreRoutes.ts:782–815.
+
+- [ ] **Fix `PUT /orders/:id` state machine bypass** · REVIEW-007-003
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Data Integrity / Security
+  - **Why:** `updateOrderHandler` (PUT /orders/:id) accepts a `status` field but does not enforce the same state machine guards as `patchOrderStatusHandler`. A delivered or cancelled order can have its status regressed to any other value via PUT.
+  - **Acceptance:**
+    - `updateOrderHandler` enforces identical terminal state guards: `delivered` orders cannot be transitioned to any other status; `cancelled` orders cannot be changed
+    - Attempt to regress via PUT returns 409 with `invalid_transition` error code
+    - Existing PATCH behaviour unchanged
+  - **Priority:** high
+  - **Notes:** REVIEW-007-003 — Day 007 review. `updateOrderHandler` is at coreRoutes.ts:4007–4080.
+
+- [ ] **Wrap `logAction` in patchOrderStatusHandler with try/catch** · REVIEW-007-004
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Reliability
+  - **Why:** `logAction` is called without a surrounding try/catch in `patchOrderStatusHandler`. If `event_logs` is unavailable, an unhandled rejection propagates and returns 500 — even after the order status was already successfully updated. `writeAuditLog` immediately after has a catch block; `logAction` does not.
+  - **Acceptance:**
+    - `logAction` call in `patchOrderStatusHandler` wrapped in try/catch
+    - Failure logs `console.warn` and does not propagate as 500 on a successful status update
+    - Same fix applied to any other route handlers in `coreRoutes.ts` where `logAction` is called outside a try/catch after a successful write
+  - **Priority:** high
+  - **Notes:** REVIEW-007-004 — Day 007 review.
+
 ---
 
 ### Medium Priority
@@ -176,16 +210,61 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### API Worker
 
-- [ ] **Split `coreRoutes.ts` into domain-scoped route files**
+- [ ] **Split `coreRoutes.ts` into domain-scoped route files** · REVIEW-007-001
   - **Repo(s):** olive_and_ivory_api
-  - **Area:** DX
-  - **Why:** At 4,372 lines, `coreRoutes.ts` is a single-file monolith. It is slow to navigate, hard to review in PRs, and increases merge conflict surface area.
+  - **Area:** DX / Architecture
+  - **Why:** At 4,835 lines, `coreRoutes.ts` is a single-file monolith — 9.7× the 500 LOC limit. It is slow to navigate, hard to review, and every PR touching any route risks merge conflicts across all domains.
   - **Acceptance:**
-    - Routes split into at minimum: `collections.ts`, `gifts.ts`, `orders.ts`, `media.ts`, `inventory.ts`, `delivery.ts`, `ai.ts`, `admin.ts`
-    - Shared helpers extracted to `src/lib/responseHelpers.ts`, `src/lib/logging.ts`, `src/lib/schemaCache.ts`
-    - `index.ts` registers each module; TypeScript compiles cleanly; all routes verified in production
+    - Shared helpers extracted first: `src/lib/routeUtils.ts`, `src/lib/orderHelpers.ts`, `src/lib/giftHelpers.ts`, `src/lib/collectionHelpers.ts`
+    - Route handlers split into: `collections.ts`, `collectionGifts.ts`, `gifts.ts`, `giftMedia.ts`, `orders.ts`, `orderActions.ts`, `ai.ts`, `cms.ts`, `delivery.ts`, `newsletter.ts`
+    - Each extracted module ≤500 LOC
+    - `registerCoreRoutes` becomes a thin delegating entry point (~50 LOC)
+    - `/api/` dual-registration preserved in every module
+    - TypeScript compiles cleanly; all routes smoke-tested against staging D1 after each extraction step
+  - **Priority:** high
+  - **Notes:** REVIEW-007-001 — full split plan in `docs/reviews/2026-03-03-day007-PATCH-orders-id-status.md#F`. Original task REVIEW-001-015 in `docs/reviews/2026-03-01-day001-POST-api-orders.md#F`
+
+- [ ] **Add length limit to `reason` field on PATCH /orders/:id/status** · REVIEW-007-005
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Validation
+  - **Why:** The `reason` field (written to `cancel_reason` column) has no length limit. An unbounded string is accepted by authenticated callers and written to D1.
+  - **Acceptance:**
+    - `reason` capped at 500 characters in `patchOrderStatusHandler`
+    - Values exceeding the limit return 400 with a descriptive error before any DB write
   - **Priority:** medium
-  - **Notes:** REVIEW-001-015 — full split plan in `docs/reviews/2026-03-01-day001-POST-api-orders.md#F`
+  - **Notes:** REVIEW-007-005 — Day 007 review.
+
+- [ ] **Batch `inventory_stock` upserts in `restoreOrderInventoryStock`** · REVIEW-007-006
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Performance / Reliability
+  - **Why:** Stock restoration runs N serial `db.prepare(...).run()` calls in a loop. For orders with many line items, this is multiple sequential D1 round trips and can leave stock partially restored on mid-loop failure.
+  - **Acceptance:**
+    - Serial calls replaced with a single `db.batch(statements)` call
+    - Semantics preserved: same rows updated with same quantities
+    - Atomic: either all items restored or none (relying on D1 batch semantics)
+  - **Priority:** medium
+  - **Notes:** REVIEW-007-006 — Day 007 review. Also addresses atomicity partially (complement to REVIEW-007-002).
+
+- [ ] **Log 409 state transition rejections to `event_logs`** · REVIEW-007-007
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Observability
+  - **Why:** When an invalid status transition is blocked (e.g. attempting to change a delivered order), no event log is written. Blocked transitions are not auditable.
+  - **Acceptance:**
+    - `logAction` called on 409 path with `level: "warn"` and `action: "orders.status_rejected"`
+    - Payload includes `order_id`, `from_status`, `to_status`, and rejection reason
+    - Call wrapped in try/catch so it does not affect response
+  - **Priority:** medium
+  - **Notes:** REVIEW-007-007 — Day 007 review.
+
+- [ ] **Replace `SELECT *` in order before/after reads with explicit column lists** · REVIEW-007-008
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Data Hygiene / PII
+  - **Why:** `patchOrderStatusHandler` issues two `SELECT *` queries per request, returning all PII columns. Only status-relevant fields are needed; returning full PII unnecessarily expands the data surface returned to callers.
+  - **Acceptance:**
+    - `SELECT *` in before/after reads replaced with an explicit column list covering only fields required for the response and audit log
+    - Admin UI response contract verified to be unaffected before any field is removed
+  - **Priority:** medium
+  - **Notes:** REVIEW-007-008 — Day 007 review.
 
 - [ ] **Add OpenAI prompt length guard before sending to API**
   - **Repo(s):** olive_and_ivory_api
