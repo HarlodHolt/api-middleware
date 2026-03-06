@@ -1,6 +1,6 @@
 name: CI
 
-# Lock down the default GITHUB_TOKEN — jobs only request what they need.
+# Lock down the default GITHUB_TOKEN to read-only.
 permissions:
   contents: read
 
@@ -12,14 +12,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # No extra permissions needed for lint/test/build
     permissions:
       contents: read
     steps:
-      # Pinned to immutable commit SHA — protects against tag-hijack supply chain attacks.
-      # actions/checkout v4.2.2
+      # actions/checkout v4.2.2 — pinned to immutable SHA (supply chain protection).
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      # actions/setup-node v4.1.0
+      # actions/setup-node v4.1.0 — pinned to immutable SHA.
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: 22.x
@@ -35,20 +33,4 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
-
-  dispatch-deploy:
-    name: Trigger deploy in admin repo
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    permissions: {} # No GITHUB_TOKEN access needed — only uses DISPATCH_TOKEN secret
-    steps:
-      - name: Send repository_dispatch to admin repo
-        # Passes the exact commit SHA that passed CI so the deploy job pins to it.
-        # --fail ensures a bad token or 4xx response fails the step visibly.
-        run: |
-          curl --fail -s -X POST \
-            -H "Authorization: token ${{ secrets.DISPATCH_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/HarlodHolt/admin_olive_and_ivory_gifts/dispatches \
-            -d '{"event_type":"deploy-api","client_payload":{"sha":"${{ github.sha }}"}}'
+      # Deployment is handled automatically by Cloudflare's Git integration on push to main.
