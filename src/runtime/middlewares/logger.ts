@@ -113,13 +113,13 @@ export function withLogging(options?: { action_prefix?: string; sink?: LogSink }
             user_agent: context.user_agent,
             user_id: context.user_id || null,
             user_email: context.user_email || null,
-              metadata: {
-                action_prefix: options?.action_prefix || null,
-                user_agent: context.user_agent || null,
-                ip_address: context.ip || null,
-                request_json: {
-                  query: Object.fromEntries(new URL(request.url).searchParams.entries()),
-                  parsed_body_keys:
+            metadata: {
+              action_prefix: options?.action_prefix || null,
+              user_agent: context.user_agent || null,
+              ip_address: context.ip || null,
+              request_json: {
+                query: Object.fromEntries(new URL(request.url).searchParams.entries()),
+                parsed_body_keys:
                   context.state.parsed_body && typeof context.state.parsed_body === "object"
                     ? Object.keys(context.state.parsed_body as Record<string, unknown>)
                     : [],
