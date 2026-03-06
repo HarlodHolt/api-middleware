@@ -25,3 +25,18 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  dispatch-deploy:
+    name: Trigger deploy in admin repo
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Send repository_dispatch to admin repo
+        run: |
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.DISPATCH_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/HarlodHolt/admin_olive_and_ivory_gifts/dispatches \
+            -d '{"event_type":"deploy-api","client_payload":{"sha":"${{ github.sha }}"}}'
+
