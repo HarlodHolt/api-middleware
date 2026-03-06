@@ -1,5 +1,9 @@
 name: CI
 
+# Lock down the default GITHUB_TOKEN — jobs only request what they need.
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -8,9 +12,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # No extra permissions needed for lint/test/build
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Pinned to immutable commit SHA — protects against tag-hijack supply chain attacks.
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      # actions/setup-node v4.1.0
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: 22.x
           cache: npm
@@ -31,12 +41,14 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions: {} # No GITHUB_TOKEN access needed — only uses DISPATCH_TOKEN secret
     steps:
       - name: Send repository_dispatch to admin repo
+        # Passes the exact commit SHA that passed CI so the deploy job pins to it.
+        # --fail ensures a bad token or 4xx response fails the step visibly.
         run: |
-          curl -s -X POST \
+          curl --fail -s -X POST \
             -H "Authorization: token ${{ secrets.DISPATCH_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/HarlodHolt/admin_olive_and_ivory_gifts/dispatches \
             -d '{"event_type":"deploy-api","client_payload":{"sha":"${{ github.sha }}"}}'
-
