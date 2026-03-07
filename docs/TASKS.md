@@ -1,6 +1,6 @@
 # Outstanding Tasks & Improvements
 
-> Last updated: 2026-03-06
+> Last updated: 2026-03-08
 > Owner: repo agent / Yuri
 > Scope: Task backlog for the Olive & Ivory Gifts project
 
@@ -442,16 +442,10 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Extracted helpers/sub-components follow single-responsibility rule
   - **Priority:** medium
 
-- [ ] **Split GiftEditorForm into focused feature sections**
+- [x] **Split GiftEditorForm into focused feature sections**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Editor UX / Maintainability
-  - **Why:** `GiftEditorForm.tsx` remains a large multi-responsibility file even after extracting gift product management. This slows changes and increases regression risk.
-  - **Acceptance:**
-    - `GiftEditorForm.tsx` reduced below 500 LOC
-    - Core sections (overview, AI, media, products, SEO/tags, preview) moved into focused child components or hooks
-    - Existing behavior and save contract unchanged
-  - **Priority:** medium
-  - **Notes:** Product assignment moved into `src/components/gift-editor/GiftProductsSection.tsx`, but the parent form is still oversized.
+  - **Status:** COMPLETE (2026-03-06) — Extracted `giftEditorHelpers.ts`, `useGiftEditorSubmit.ts`, `useGiftFormState.ts`. Parent form reduced from 745 → 234 lines.
 
 - [ ] **Add reusable sortable list pattern before introducing gift product drag-and-drop**
   - **Repo(s):** admin_olive_and_ivory_gifts
@@ -734,9 +728,6 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** REVIEW-008-004
 
-
-### Admin
-
 - [ ] **Implement async compensation rollback for R2 uploads on D1 failure**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Reliability
@@ -745,3 +736,48 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - In the D1 catch hook, the system initiates a compensating transaction env.BUCKET.delete(key).
   - **Priority:** medium
   - **Notes:** REVIEW-008-005
+
+- [x] **[SECURITY-CRITICAL] Cryptographically validate admin session cookie for API routes (Generate Image)**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Auth / Security
+  - **Why:** `POST /api/ai/items/generate-image` relies only on the middleware presence check for `oi_admin_session`, allowing unauthenticated malicious users to spoof a cookie and rapidly drain the system's OpenAI credits/bucket quota.
+  - **Acceptance:**
+    - Wrap the export in `withSession` to validate the db-backed cryptographic token.
+  - **Priority:** high
+  - **Notes:** REVIEW-009-001
+
+- [x] **Sanitize `payload.product.id` to prevent R2 path traversal**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Security / Validation
+  - **Why:** `product.id` defines the object's folder structure in R2. Path traversal strings (e.g. `../../../`) injected here grant ability to overwrite files outside of the target sandbox.
+  - **Acceptance:**
+    - Force stripping of any special pathing characters `[^a-z0-9_-]` from `product.id`.
+  - **Priority:** high
+  - **Notes:** REVIEW-009-002
+
+- [ ] **Mitigate Prompt Injection on OpenAI image generation**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Security / AI Assist
+  - **Why:** Product name, notes, and tags are directly concatenated into OpenAI prompt instructions. A hostile input could bypass system constraints and alter output significantly.
+  - **Acceptance:**
+    - Explicitly enclose any unsanitized user inputs within protective XML tags, instructing the model exactly how to consume them.
+  - **Priority:** medium
+  - **Notes:** REVIEW-009-003
+
+- [x] **Remove PRAGMA introspection in generate-image route**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Performance
+  - **Why:** Dynamic checking if `inventory_items` includes specific columns wastes round trips.
+  - **Acceptance:**
+    - Drop `PRAGMA table_info` query and use a statically defined schema expectation for the D1 update.
+  - **Priority:** low
+  - **Notes:** REVIEW-009-004
+
+- [ ] **Parallelise R2 operations and handle partial failures (generate-image)**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Reliability / Performance
+  - **Why:** R2 put calls for large, medium, thumb happen linearly, increasing response latency. Partial failure on `updateItemImage` creates permanent bucket orphans.
+  - **Acceptance:**
+    - Wrap uploads in `Promise.all` and ensure compensating deletions if D1 write fails.
+  - **Priority:** low
+  - **Notes:** REVIEW-009-005

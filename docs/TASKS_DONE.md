@@ -1,7 +1,7 @@
 # Completed Tasks
 
 > Companion to [TASKS.md](TASKS.md)
-> Last updated: 2026-03-05
+> Last updated: 2026-03-08
 
 ---
 
@@ -9,7 +9,8 @@
 
 - [x] **Complete Day 005 deep-dive review: `createStripeCheckoutSession()`** — docs · REVIEW-005 · 2026-03-05
 - [x] **Complete Day 006 deep-dive review: Log Explorer observability and API usage coverage** — docs · REVIEW-006 · 2026-03-05
-- [x] **Forward client provenance headers (`cf-connecting-ip`, `x-forwarded-for`, `user-agent`) through signed admin/storefront -> API worker calls** — admin_olive_and_ivory_gifts, olive_and_ivory_gifts · REVIEW-006-001 (partial remediation) · 2026-03-05
+- [x] **Forward client provenance headers (`cf-connecting-ip`, `x-forwarded-for`, `user-agent`) through signed admin/storefront → API worker calls** — admin_olive_and_ivory_gifts, olive_and_ivory_gifts · REVIEW-006-001 (partial remediation) · 2026-03-05
+- [x] **Complete Day 008 deep-dive review: `POST /api/uploads`** — docs · REVIEW-008 · 2026-03-08
 
 ### Admin — Auth Security (Day 003 Review Fixes)
 
@@ -78,3 +79,55 @@
 
 - [x] **Remove geocode debug logging from production** — olive_and_ivory_gifts · `src/app/api/geocode/route.ts`
 - [x] **Remove `BRAND_DEBUG` flag from `Header.tsx`** — olive_and_ivory_gifts
+
+### Admin — Day 008 Review Fixes (2026-03-08)
+
+- [x] **[SECURITY-CRITICAL] Cryptographically validate admin session cookie for API routes** — admin_olive_and_ivory_gifts · REVIEW-008-001 · 2026-03-08
+  - Created `withSession.ts` wrapper; validates `oi_admin_session` via D1 lookup; returns 401 if missing or invalid
+- [x] **Sanitize `prefix` and `collection_id` to prevent R2 path traversal** — admin_olive_and_ivory_gifts · REVIEW-008-002 · 2026-03-08
+  - Regex `/[^a-z0-9_-]/gi` applied to both fields; max 64 chars enforced
+- [x] **Strict extension allowlist mapped to MIME types** — admin_olive_and_ivory_gifts · REVIEW-008-003 · 2026-03-08
+  - Created `MIME_TO_EXT` server-side map; extension derived from validated MIME type, not client filename
+
+### Admin — Day 009 Review Fixes (2026-03-09)
+
+- [x] **[SECURITY-CRITICAL] Cryptographically validate admin session cookie for Generate Image** — admin_olive_and_ivory_gifts · REVIEW-009-001 · 2026-03-09
+  - Wrapped `POSTHandler` export in `withSession` to validate cryptographic session block via D1
+- [x] **Sanitize `payload.product.id` to prevent R2 path traversal** — admin_olive_and_ivory_gifts · REVIEW-009-002 · 2026-03-09
+  - Sanitised user-controlled ID with strict alphanumeric regex before R2 key construction
+- [x] **Remove PRAGMA introspection from `generate-image` route** — admin_olive_and_ivory_gifts · REVIEW-009-004 · 2026-03-09
+  - Replaced double-roundtrip D1 table checks with static `UPDATE inventory_items`
+
+### Admin + API — Inventory Canonical Schema Refactor (2026-03-07/08)
+
+- [x] **Align `Item` interface to canonical `inventory_items` column names** — admin_olive_and_ivory_gifts · 2026-03-07
+  - Renamed: `sku`→`slug`, `barcode`→`barcode_gtin`, `image_key`→`hero_image_key`, `stock_quantity`→`stock_on_hand`, `pack_qty`→`qty_per_pack`, `price_cents`→`price_per_pack_cents`, `cost_cents`→`cost_per_pack_cents`
+- [x] **Update `InventoryTable`, `GiftProductsSection`, `useInventoryBulkAiHelpers` to canonical fields** — admin_olive_and_ivory_gifts · 2026-03-07
+- [x] **Update `fromItem()` DB→FormState mapping to canonical field names** — admin_olive_and_ivory_gifts · 2026-03-07
+- [x] **`mapInventoryRowToLegacyItem` returns canonical `Item` shape** — admin_olive_and_ivory_gifts · 2026-03-07
+- [x] **`ItemActivationCandidate` and `activate/route.ts` use canonical fields** — admin_olive_and_ivory_gifts · 2026-03-07
+- [x] **`inventorySuggestionSchema` renamed to canonical field names** (`sku`→`slug`, `barcode`→`barcode_gtin`, `store_name`→`store`, `pack_qty`→`qty_per_pack`, `description`→`notes`) — admin_olive_and_ivory_gifts · 2026-03-08
+- [x] **`bulk-import` sample data and `inventoryJsonBulkHelpers` sample corrected** — admin_olive_and_ivory_gifts · 2026-03-07
+- [x] **`INVENTORY_BULK_EDIT_FIELDS` consolidated** (`description`+`notes` → single `notes`) — admin_olive_and_ivory_gifts · 2026-03-08
+- [x] **`INVENTORY_COLUMN_BY_FIELD` duplicate alias removed** (`description`→`notes` dropped, `notes`→`notes` kept) — admin_olive_and_ivory_gifts · 2026-03-08
+- [x] **`InventoryEditor` AI `buildRequestBody` sends canonical field names** — admin_olive_and_ivory_gifts · 2026-03-08
+- [x] **`buildPayload` in `useInventorySubmit` sends `notes` not `description`; drops computed `unit_price`** — admin_olive_and_ivory_gifts · 2026-03-08
+- [x] **`InventoryRecordInput` alias fields documented with JSDoc** — admin_olive_and_ivory_gifts · 2026-03-08
+- [x] **`inventory_audit.md` and `refactor-todo.md` updated with completion status** — docs · 2026-03-08
+- [x] **TypeScript build confirmed zero errors throughout entire refactor** — admin_olive_and_ivory_gifts · 2026-03-08
+
+### API Worker — `giftItemDb.ts` canonical schema support (2026-03-08)
+
+- [x] **`giftItemDb` stock query supports both `stock_on_hand` and `stock_quantity` columns** — olive_and_ivory_api · 2026-03-08
+  - Detects `stock_on_hand` / `stock_quantity` columns; falls back gracefully; exposes both as aliases in SELECT
+- [x] **`giftItemDb` `qty_per_pack` / `pack_qty` dual-column support** — olive_and_ivory_api · 2026-03-08
+- [x] **`giftItemDb` `low_stock_threshold` column detected dynamically instead of hardcoded `5`** — olive_and_ivory_api · 2026-03-08
+- [x] **`giftCrudRoutes` stock normalization uses `stock_on_hand ?? stock_quantity` and `qty_per_pack ?? pack_qty`** — olive_and_ivory_api · 2026-03-08
+
+### API Worker — `collectionGiftDb.ts` one-collection-per-gift enforcement (2026-03-08)
+
+- [x] **`upsertCollectionGiftLinks` clears prior assignment for gift before inserting new link** — olive_and_ivory_api · 2026-03-08
+- [x] **`upsertCollectionGiftLinks` back-fills `gifts.collection_id` after linking** — olive_and_ivory_api · 2026-03-08
+- [x] **Gift list query uses `ranked_links` CTE for deduped collection assignment** — olive_and_ivory_api · 2026-03-08
+- [x] **`collectionGiftDb` fetch uses `linked + fallback` CTE to merge `collection_gifts` table and `gifts.collection_id` legacy field** — olive_and_ivory_api · 2026-03-08
+- [x] **Gift update route syncs `collection_gifts` table when `collection_id` changes** — olive_and_ivory_api · 2026-03-08

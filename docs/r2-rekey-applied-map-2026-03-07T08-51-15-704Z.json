@@ -1,0 +1,72 @@
+{
+  "applied_at": "2026-03-07T08:51:40.489Z",
+  "bucket": "olive-and-ivory-gifts-assets",
+  "pair_count": 16,
+  "rollback_sql": "/Users/yuri_baker/dev/docs/r2-rekey-rollback-2026-03-07T08-51-15-704Z.sql",
+  "mapping": [
+    {
+      "old_key": "collections/1db42c3a-9c94-4c31-9bdc-b9d5e5e8002a/1771934325869-hero.webp",
+      "new_key": "collections/v2/d6/d6f6034978204777942c7f5ef131a999.webp"
+    },
+    {
+      "old_key": "collections/28cbfbe7-1e87-4a91-89f3-7e4aa5250d5a/1771848128258-hero.webp",
+      "new_key": "collections/v2/38/38ee2e0443a04f0a911bad56a62277b3.webp"
+    },
+    {
+      "old_key": "collections/b684374a-7dd5-484e-af54-e59b07652907/1771934066412-hero.webp",
+      "new_key": "collections/v2/37/377b4d2ee63d43b2a6c4ada2ce901202.webp"
+    },
+    {
+      "old_key": "collections/sundya-reset-slow-mronings/1771557137710.webp",
+      "new_key": "collections/v2/e5/e5a44e4e5ed04b44abf12f6b26b02967.webp"
+    },
+    {
+      "old_key": "collections/untitled/1771542571729.webp",
+      "new_key": "collections/v2/90/9058ae64bcd9405d8f81101140fce696.webp"
+    },
+    {
+      "old_key": "collections/untitled/1771557039360.webp",
+      "new_key": "collections/v2/a3/a3d61812597144e28068535c4b46c955.webp"
+    },
+    {
+      "old_key": "gifts/calm-cosy/1772681223174-calm-n-cosy.jpg",
+      "new_key": "gifts/v2/b0/b02671d05cfe4d18ad9686a38a769b43.jpg"
+    },
+    {
+      "old_key": "gifts/easter-activity/1772615307361-easter-ativity.jpg",
+      "new_key": "gifts/v2/3e/3e68fe1fd12b403a91761b16f0a2edb7.jpg"
+    },
+    {
+      "old_key": "gifts/easter-carton/1772679006465-easter-cartons.jpg",
+      "new_key": "gifts/v2/1c/1c60d76215db4b309db27f14f58bc150.jpg"
+    },
+    {
+      "old_key": "gifts/easter-lunch-brunch/1772616278122-easter-lunch.jpg",
+      "new_key": "gifts/v2/ed/edbd9d59c7d2468c8c481e26f82dcf66.jpg"
+    },
+    {
+      "old_key": "gifts/potted-welcome-small/1772751226958-potted-home.jpg",
+      "new_key": "gifts/v2/49/49314aa5d113417a9ada822e157b6041.jpg"
+    },
+    {
+      "old_key": "gifts/reveal-box/1772680949978-eaater-boxes.jpg",
+      "new_key": "gifts/v2/25/2545c25c943543e7b8c2a27d4e52e1b1.jpg"
+    },
+    {
+      "old_key": "gifts/small-bamboo/1772744045054-chatgpt-image-jan-23-2026-10_31_54-am.jpeg",
+      "new_key": "gifts/v2/91/910635f210c04a2a94bc29118da3aa62.jpeg"
+    },
+    {
+      "old_key": "gifts/the-calm-cosy/1772760434222-calm-n-cosy.jpg",
+      "new_key": "gifts/v2/20/20767cae85264cd9a8b412e605d82bc4.jpg"
+    },
+    {
+      "old_key": "gifts/untitled/1772744883509-first-nigth-basket.jpg",
+      "new_key": "gifts/v2/e1/e14e8d76d2fd48809999a607863149fe.jpg"
+    },
+    {
+      "old_key": "gifts/untitled/1772745089103-large-potted-welcome.jpg",
+      "new_key": "gifts/v2/a0/a006fe31f5614e5d9fb68865963f0a2b.jpg"
+    }
+  ]
+}
