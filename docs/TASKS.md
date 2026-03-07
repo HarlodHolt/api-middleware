@@ -46,7 +46,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Each module ≤500 lines
   - **Priority:** high
 
-- [ ] **Add request timeout handling on all outbound fetch calls**
+- [x] **Add request timeout handling on all outbound fetch calls**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Infra
   - **Why:** No `AbortController` timeout on calls to Stripe, OpenAI, Google Places, or Brevo. A slow upstream hangs the Worker isolate until Cloudflare's hard limit.
@@ -54,6 +54,9 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - All outbound `fetch()` calls wrapped with `AbortController` and a configurable timeout (default 10s)
     - Timeout errors classified and returned as 504 with structured error body
   - **Priority:** high
+  - **Status:** COMPLETE (2026-03-07)
+    - Wrapped fetchWithTimeout on Stripe (15s), OpenAI (30s), Brevo (10s), Photon (10s) calls across: stripe.ts, orderFinanceRoutes.ts, ai.ts, entity-ai-suggest.ts, deliveryOpsRoutes.ts, observability.ts, shipping.ts
+    - Note: orderDomain.ts already had timeout via AbortController parameter
 
 - [ ] **Add idempotency handling to order creation**
   - **Repo(s):** olive_and_ivory_api
@@ -129,7 +132,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### Storefront
 
-- [ ] **Split `CheckoutPageClient.tsx` into focused checkout sections** · LOC-SF-001
+- [x] **Split `CheckoutPageClient.tsx` into focused checkout sections** · LOC-SF-001
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** At 1,235 lines, `CheckoutPageClient.tsx` is 2.5× the 500 LOC limit. It mixes address form, delivery date selection, Stripe initiation, order confirmation, and cart rendering in a single component.
@@ -138,6 +141,8 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - No single new file exceeds 500 lines
     - Existing checkout flow and Stripe integration unchanged
   - **Priority:** high
+  - **Status:** COMPLETE (2026-03-07)
+    - Created 12 focused files: `australianAddress.ts`, 4 custom hooks (useCheckoutForm, useDeliveryRules, useDeliveryQuote, useAddressAutocomplete), 5 UI components (OrderSummary, DeliveryDetailsSection, BillingDetailsSection, AddressSection, ConfirmAddressModal), CheckoutFields primitives, and refactored orchestrator (~120 lines)
 
 - [ ] **Implement `/contact` page form submission**
   - **Repo(s):** olive_and_ivory_gifts
@@ -480,7 +485,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Each module ≤500 lines
   - **Priority:** medium
 
-- [ ] **Audit and reduce medium-oversized storefront lib files** · LOC-SF-003
+- [x] **Audit and reduce medium-oversized storefront lib files** · LOC-SF-003
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** The following storefront files exceed 500 lines without individual split tasks:
@@ -489,6 +494,9 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Acceptance:**
     - Each file reviewed and either split to ≤500 lines or a justified exception documented
   - **Priority:** medium
+  - **Status:** COMPLETE (2026-03-07)
+    - `orders.ts`: Split validation helpers into `orderValidation.ts` (removed ~105 lines). Now 467 lines. Removed duplicate state mapping, imported from `australianAddress.ts`.
+    - `browse.ts`: 522 lines documented as justified exception. Single-concern SQL query builder with three fallback modes (gifts/variants/collections). Splitting would reduce clarity; the complex conditional logic across modes is tightly coupled.
 
 - [ ] **Avoid duplicate browse queries for unfiltered facets**
   - **Repo(s):** olive_and_ivory_gifts
@@ -681,7 +689,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ## High Priority
 
-- [ ] **[SECURITY-CRITICAL] Cryptographically validate admin session cookie for API routes**
+- [x] **[SECURITY-CRITICAL] Cryptographically validate admin session cookie for API routes**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Auth / Security
   - **Why:** Next.js middleware only checks physical presence of oi_admin_session cookie, allowing full authentication bypass by injecting a spoofed cookie.
@@ -690,11 +698,12 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Middleware or high-order wrapper logic covers all admin_olive_and_ivory_gifts/src/app/api mutations.
   - **Priority:** high
   - **Notes:** REVIEW-008-001
+  - **Status:** COMPLETE (2026-03-07) — Created `withSession.ts` wrapper that validates `oi_admin_session` cookie via D1 lookup, returns 401 if invalid
 
 
 ### Admin
 
-- [ ] **Sanitize prefix and collection_id to prevent R2 path traversal**
+- [x] **Sanitize prefix and collection_id to prevent R2 path traversal**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Security / Validation
   - **Why:** R2 Storage Key generation uses unsanitized strings for prefix and collection_id in /api/uploads, enabling directory traversal overwrites.
@@ -702,8 +711,9 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - prefix and collection_id are regex sanitized to strip out slashes and dots before string interpolation.
   - **Priority:** high
   - **Notes:** REVIEW-008-002
+  - **Status:** COMPLETE (2026-03-07) — Added regex sanitization `/[^a-z0-9_-]/gi` on both fields, max 64 chars
 
-- [ ] **Strict extension allowlist mapped to MIME types**
+- [x] **Strict extension allowlist mapped to MIME types**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Security / Validation
   - **Why:** File extension is blindly ripped from file.name and appended to R2 key. Attackers can upload files like .svg or .html disguised as image/jpeg.
@@ -711,6 +721,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - The file extension generated for the R2 key is mapped from an immutable, server-side MIME type or verified against an explicit whitelist.
   - **Priority:** high
   - **Notes:** REVIEW-008-003
+  - **Status:** COMPLETE (2026-03-07) — Created MIME_TO_EXT server-side map, derive extension from validated MIME type (not client filename)
 
 ## Medium Priority
 
