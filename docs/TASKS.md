@@ -178,7 +178,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - `npm audit` now covers the package
   - **Priority:** high
 
-- [ ] **Make order stock restore + status UPDATE atomic** · REVIEW-007-002
+- [x] **Make order stock restore + status UPDATE atomic** · REVIEW-007-002
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Data Integrity
   - **Why:** In `patchOrderStatusHandler`, `restoreOrderInventoryStock` runs N serial upserts before the `UPDATE orders SET status` executes. If the UPDATE fails after stock is restored, stock is permanently incremented but the order is not cancelled. A second cancel attempt will restore stock again.
@@ -189,8 +189,9 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Failure path tested: if UPDATE throws, stock remains unchanged
   - **Priority:** high
   - **Notes:** REVIEW-007-002 — Day 007 review. `restoreOrderInventoryStock` is at coreRoutes.ts:782–815.
+  - **Status:** COMPLETE (2026-03-08) — Refactored `restoreOrderInventoryStock` and `writeOffOrderStock` to return arrays of `D1PreparedStatement` instead of executing sequentially. Bundled them into a `db.batch()` execution alongside the `UPDATE orders` statement inside `patchOrderStatusHandler` and `updateOrderHandler` for transaction atomicity.
 
-- [ ] **Fix `PUT /orders/:id` state machine bypass** · REVIEW-007-003
+- [x] **Fix `PUT /orders/:id` state machine bypass** · REVIEW-007-003
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Data Integrity / Security
   - **Why:** `updateOrderHandler` (PUT /orders/:id) accepts a `status` field but does not enforce the same state machine guards as `patchOrderStatusHandler`. A delivered or cancelled order can have its status regressed to any other value via PUT.
@@ -200,8 +201,9 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Existing PATCH behaviour unchanged
   - **Priority:** high
   - **Notes:** REVIEW-007-003 — Day 007 review. `updateOrderHandler` is at coreRoutes.ts:4007–4080.
+  - **Status:** COMPLETE (2026-03-08) — Added strict status guards to `updateOrderHandler` identical to `patchOrderStatusHandler` restricting mutations out of terminal `delivered` and `cancelled` states.
 
-- [ ] **Wrap `logAction` in patchOrderStatusHandler with try/catch** · REVIEW-007-004
+- [x] **Wrap `logAction` in patchOrderStatusHandler with try/catch** · REVIEW-007-004
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Reliability
   - **Why:** `logAction` is called without a surrounding try/catch in `patchOrderStatusHandler`. If `event_logs` is unavailable, an unhandled rejection propagates and returns 500 — even after the order status was already successfully updated. `writeAuditLog` immediately after has a catch block; `logAction` does not.
@@ -211,6 +213,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Same fix applied to any other route handlers in `coreRoutes.ts` where `logAction` is called outside a try/catch after a successful write
   - **Priority:** high
   - **Notes:** REVIEW-007-004 — Day 007 review.
+  - **Status:** COMPLETE (2026-03-08) — Wrapped `logAction` inside `patchOrderStatusHandler` in try/catch block.
 
 ---
 
