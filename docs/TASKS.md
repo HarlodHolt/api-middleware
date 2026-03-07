@@ -27,7 +27,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### API Worker
 
-- [ ] **Split `index.ts` below 500 lines** · LOC-API-001
+- [x] **Split `index.ts` below 500 lines** · LOC-API-001
   - **Repo(s):** olive_and_ivory_api
   - **Area:** DX / Architecture
   - **Why:** `index.ts` is 817 lines after the March 2026 extraction. It still contains route registration, scheduled handler, environment validation, and middleware wiring in one file.
@@ -37,7 +37,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - TypeScript compiles cleanly; all routes smoke-tested after extraction
   - **Priority:** high
 
-- [ ] **Split `logs.ts` below 500 lines** · LOC-API-002
+- [x] **Split `logs.ts` below 500 lines** · LOC-API-002
   - **Repo(s):** olive_and_ivory_api
   - **Area:** DX / Architecture
   - **Why:** `logs.ts` is 726 lines — 1.5× the limit. Log route handlers and any aggregation/query helpers should be in separate files.
@@ -68,7 +68,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### Admin
 
-- [ ] **Split `orders/client.tsx` (orders list) into focused modules** · LOC-ADM-001
+- [x] **Split `orders/client.tsx` (orders list) into focused modules** · LOC-ADM-001
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** The orders list client component is 1,073 lines — 2.1× the limit. It contains the full page, 6 modal components (CancelModal, RefundModal, DeleteModal, HardDeleteConfirmModal, StockActionModal, RestockItemsModal), and all page-level state. Modals especially belong in separate files.
@@ -78,7 +78,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - `client.tsx` reduced to ≤500 lines with focused page responsibility
   - **Priority:** high
 
-- [ ] **Split `InventoryListPage.tsx` below 500 lines** · LOC-ADM-002
+- [x] **Split `InventoryListPage.tsx` below 500 lines** · LOC-ADM-002
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** `InventoryListPage.tsx` is 791 lines — 1.6× the limit. Contains table, filters, inline editor, and modals in one component.
@@ -87,7 +87,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - No new file exceeds the limit
   - **Priority:** high
 
-- [ ] **Split `CollectionMetadataForm.tsx` below 500 lines** · LOC-ADM-003
+- [x] **Split `CollectionMetadataForm.tsx` below 500 lines** · LOC-ADM-003
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** `CollectionMetadataForm.tsx` is 785 lines — 1.6× the limit. Mixes form sections, AI assist, SEO fields, and preview logic.
@@ -96,7 +96,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Parent file reduced to ≤500 lines
   - **Priority:** high
 
-- [ ] **Split `systemHealth.ts` below 500 lines** · LOC-ADM-004
+- [x] **Split `systemHealth.ts` below 500 lines** · LOC-ADM-004
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** `systemHealth.ts` is 774 lines — 1.5× the limit. Mixes multiple system health check categories in one module.
@@ -405,7 +405,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Add image button always visible; keyboard accessible expand/collapse
   - **Priority:** medium
 
-- [ ] **Split `useAiAssistFlow.ts` below 500 lines** · LOC-ADM-005
+- [x] **Split `useAiAssistFlow.ts` below 500 lines** · LOC-ADM-005
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** `useAiAssistFlow.ts` is 694 lines — 1.4× the limit. A single hook doing this much state management is hard to test and reason about.
@@ -414,7 +414,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - `useAiAssistFlow` becomes a thin orchestrator ≤300 lines
   - **Priority:** medium
 
-- [ ] **Split `useInventoryEditorState.ts` below 500 lines** · LOC-ADM-006
+- [x] **Split `useInventoryEditorState.ts` below 500 lines** · LOC-ADM-006
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** `useInventoryEditorState.ts` is 686 lines — 1.4× the limit. A single hook handling this much editor state makes extraction and testing difficult.
@@ -423,7 +423,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - No new file exceeds the limit
   - **Priority:** medium
 
-- [ ] **Audit and reduce medium-oversized admin pages** · LOC-ADM-007
+- [x] **Audit and reduce medium-oversized admin pages** · LOC-ADM-007
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** The following admin pages exceed 500 lines without individual split tasks:
@@ -471,7 +471,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### Storefront
 
-- [ ] **Split `data.ts` below 500 lines** · LOC-SF-002
+- [x] **Split `data.ts` below 500 lines** · LOC-SF-002
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** DX / Architecture
   - **Why:** `src/lib/data.ts` is 702 lines — 1.4× the limit. Mixes multiple data-fetching concerns for different page types.
@@ -678,3 +678,59 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 ---
 
 > Completed tasks: see [TASKS_DONE.md](TASKS_DONE.md)
+
+## High Priority
+
+- [ ] **[SECURITY-CRITICAL] Cryptographically validate admin session cookie for API routes**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Auth / Security
+  - **Why:** Next.js middleware only checks physical presence of oi_admin_session cookie, allowing full authentication bypass by injecting a spoofed cookie.
+  - **Acceptance:**
+    - Admin API endpoints reliably reject requests without a valid, verifiable cryptographically sound session hash stored in D1.
+    - Middleware or high-order wrapper logic covers all admin_olive_and_ivory_gifts/src/app/api mutations.
+  - **Priority:** high
+  - **Notes:** REVIEW-008-001
+
+
+### Admin
+
+- [ ] **Sanitize prefix and collection_id to prevent R2 path traversal**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Security / Validation
+  - **Why:** R2 Storage Key generation uses unsanitized strings for prefix and collection_id in /api/uploads, enabling directory traversal overwrites.
+  - **Acceptance:**
+    - prefix and collection_id are regex sanitized to strip out slashes and dots before string interpolation.
+  - **Priority:** high
+  - **Notes:** REVIEW-008-002
+
+- [ ] **Strict extension allowlist mapped to MIME types**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Security / Validation
+  - **Why:** File extension is blindly ripped from file.name and appended to R2 key. Attackers can upload files like .svg or .html disguised as image/jpeg.
+  - **Acceptance:**
+    - The file extension generated for the R2 key is mapped from an immutable, server-side MIME type or verified against an explicit whitelist.
+  - **Priority:** high
+  - **Notes:** REVIEW-008-003
+
+## Medium Priority
+
+- [ ] **Remove PRAGMA introspection from /api/uploads**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Performance
+  - **Why:** Dynamically discovers schema of D1 collections table using PRAGMA before writing, adding an unnecessary synchronous database roundtrip.
+  - **Acceptance:**
+    - Direct static UPDATE statement is used without schema capability querying.
+  - **Priority:** medium
+  - **Notes:** REVIEW-008-004
+
+
+### Admin
+
+- [ ] **Implement async compensation rollback for R2 uploads on D1 failure**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Reliability
+  - **Why:** If D1 update fails, it is silently ignored, leaving an orphaned object in the R2 bucket and increasing storage costs.
+  - **Acceptance:**
+    - In the D1 catch hook, the system initiates a compensating transaction env.BUCKET.delete(key).
+  - **Priority:** medium
+  - **Notes:** REVIEW-008-005
