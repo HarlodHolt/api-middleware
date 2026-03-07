@@ -58,7 +58,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Wrapped fetchWithTimeout on Stripe (15s), OpenAI (30s), Brevo (10s), Photon (10s) calls across: stripe.ts, orderFinanceRoutes.ts, ai.ts, entity-ai-suggest.ts, deliveryOpsRoutes.ts, observability.ts, shipping.ts
     - Note: orderDomain.ts already had timeout via AbortController parameter
 
-- [ ] **Add idempotency handling to order creation**
+- [x] **Add idempotency handling to order creation**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Infra
   - **Why:** Needs redesign — `orderId = crypto.randomUUID()` is generated per-request, so Worker retries create new UUIDs rather than colliding. The duplicate-INSERT scenario described requires a client-supplied idempotency key. Proposed: add `idempotency_key` field to checkout request, add `UNIQUE` constraint to D1, implement upsert + return-existing-order logic.
@@ -68,6 +68,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Duplicate key within TTL window returns the existing order + Stripe session (or re-creates an expired session)
   - **Priority:** high
   - **Notes:** REVIEW-001-009 — Day 001 review; deferred pending design
+  - **Status:** COMPLETE (2026-03-08) — Implemented D1 column with UNIQUE constraint, storefront passing UUID idempotency_key computed from payload, matching existing session successfully recreating stripe URL.
 
 #### Admin
 
