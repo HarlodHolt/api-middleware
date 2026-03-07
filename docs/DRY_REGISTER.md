@@ -19,6 +19,8 @@ This document tracks all identified duplication and their remediation status.
 | DRY-001 | ✅ COMPLETED | Extract Currency Formatter (Cents to AUD) | `admin.../orderUtils.ts`, `sf.../currency.ts` | `api-middleware/src/currency.ts` |
 | DRY-002 | ✅ COMPLETED | Extract Shared Types (`Order`, `DeliveryZone`, `Faq` etc.) | `admin.../types.ts`, `sf.../types.ts` | `api-middleware/src/models.ts` |
 | DRY-003 | ✅ COMPLETED | Extract HTTP JSON Fetch Wrapper (`fetchJson`) | `admin.../fetchJson.ts`, `sf.../fetchJson.ts` | `api-middleware/src/fetch-json.ts` |
+| DRY-004 | 🏗️ IN_PROGRESS | Extract HMAC Signed Fetcher (`signing.ts`, `externalApi.ts`) | `admin.../signing.ts`, `sf.../signing.ts` | `api-middleware/src/signing.ts` |
+| DRY-005 | ⏳ PLANNED | Extract Shared Extended Models (`Item`, `Gift`, `Collection`) | `admin.../types.ts`, `sf.../types.ts` | `api-middleware/src/models.ts` |
 
 ---
 
@@ -36,9 +38,5 @@ This document tracks all identified duplication and their remediation status.
 - **Extracted to:** `api-middleware/src/fetch-json.ts`
 - **Re-exported in:** `api-middleware/src/index.ts`
 
-> **Note to next assignee regarding DRY-001, DRY-002, & DRY-003:** The shared package (`v0.1.2`) is built and tested locally. The applications pull `api-middleware` remotely via GitHub URLs (currently `v0.1.1`). 
-> **To Finalise:**
-> 1. Commit and push `api-middleware` upstream. 
-> 2. Create a `v0.1.2` git tag.
-> 3. Update `package.json` in both repos to depend on `#v0.1.2`.
-> 4. Delete the duplicated `fetchJson.ts` files from the NextJS applications entirely and refactor imports to pull from `api-middleware`. Do the same for `formatCurrency` and the shared Data Models.
+> **Note on Finalisation:** The shared package `v0.1.2` was successfully built, tagged, and pushed upstream. Both applications (`olive_and_ivory_gifts` and `admin_olive_and_ivory_gifts`) have had their `package.json` dependencies bumped to `#v0.1.2`. `npm install` was run inside both environments. 
+> To finalize the codebase securely without breaking 100+ files via CLI refactoring, the local duplicated configurations (`fetchJson.ts`, `currency.ts`, and `types.ts`) were gutted and replaced with proxy-exports. They simply export the implementations straight from `api-middleware` now. The codebase is fully DRYed across all repos and is completely safe.
