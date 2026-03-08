@@ -221,6 +221,18 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### Storefront
 
+- [ ] **Fix and re-enable checkout address autocomplete**
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Checkout / UX
+  - **Why:** Google Places autocomplete returns 502s (likely missing or misconfigured `GOOGLE_PLACES_SERVER_KEY` in Cloudflare Pages). Geocode fallback works but flashes "Address search unavailable" during typing. Autocomplete is currently disabled (`enabled: false` in `useAddressAutocompleteController` initial state). Needs: verify API key is set in Pages env, decide on keystroke vs blur trigger, revert temporary debug changes (wildcard `X-Goog-FieldMask` and `console.log` in `places/autocomplete/route.ts`).
+  - **Acceptance:**
+    - `GOOGLE_PLACES_SERVER_KEY` confirmed working in Cloudflare Pages
+    - Autocomplete re-enabled with no flashing error messages
+    - Debug wildcard field mask and console.log reverted
+    - House number preserved in both Places and geocode results
+  - **Priority:** medium
+  - **Notes:** Disabled in commit dbfe235. Debug changes in commit 3b794b1.
+
 - [ ] **Add `gallery_image_keys` column to `collections` table or remove from schema docs**
   - **Repo(s):** olive_and_ivory_gifts, docs
   - **Area:** Schema / Data
@@ -243,7 +255,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Unit test covers cache hit and miss paths
   - **Priority:** medium
 
-- [ ] **Pin schema version per AI run in `gift_ai_runs` table**
+- [x] **Pin schema version per AI run in `gift_ai_runs` table**
   - **Repo(s):** olive_and_ivory_api
   - **Area:** AI Assist
   - **Why:** `gift_ai_runs` records store `prompt_id` but not the schema version at time of the run. If the output schema is changed in `ai_prompts`, old runs become ambiguous — it is unclear whether a historical output conformed to the current or an older schema.
@@ -298,7 +310,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Notes:** REVIEW-007-001 — full split plan in `docs/reviews/2026-03-03-day007-PATCH-orders-id-status.md#F`. Original task REVIEW-001-015 in `docs/reviews/2026-03-01-day001-POST-api-orders.md#F`
 
-- [ ] **Add length limit to `reason` field on PATCH /orders/:id/status** · REVIEW-007-005
+- [x] **Add length limit to `reason` field on PATCH /orders/:id/status** · REVIEW-007-005
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Validation
   - **Why:** The `reason` field (written to `cancel_reason` column) has no length limit. An unbounded string is accepted by authenticated callers and written to D1.
@@ -308,7 +320,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** REVIEW-007-005 — Day 007 review.
 
-- [ ] **Batch `inventory_stock` upserts in `restoreOrderInventoryStock`** · REVIEW-007-006
+- [x] **Batch `inventory_stock` upserts in `restoreOrderInventoryStock`** · REVIEW-007-006
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Performance / Reliability
   - **Why:** Stock restoration runs N serial `db.prepare(...).run()` calls in a loop. For orders with many line items, this is multiple sequential D1 round trips and can leave stock partially restored on mid-loop failure.
@@ -319,7 +331,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** REVIEW-007-006 — Day 007 review. Also addresses atomicity partially (complement to REVIEW-007-002).
 
-- [ ] **Log 409 state transition rejections to `event_logs`** · REVIEW-007-007
+- [x] **Log 409 state transition rejections to `event_logs`** · REVIEW-007-007
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Observability
   - **Why:** When an invalid status transition is blocked (e.g. attempting to change a delivered order), no event log is written. Blocked transitions are not auditable.
@@ -330,7 +342,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** REVIEW-007-007 — Day 007 review.
 
-- [ ] **Replace `SELECT *` in order before/after reads with explicit column lists** · REVIEW-007-008
+- [x] **Replace `SELECT *` in order before/after reads with explicit column lists** · REVIEW-007-008
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Data Hygiene / PII
   - **Why:** `patchOrderStatusHandler` issues two `SELECT *` queries per request, returning all PII columns. Only status-relevant fields are needed; returning full PII unnecessarily expands the data surface returned to callers.
@@ -403,7 +415,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** REVIEW-003-011 — Day 003 review; M-effort if implementing across all admin routes
 
-- [ ] **Refactor Media panel to compact row layout**
+- [x] **Refactor Media panel to compact row layout**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Images / UX
   - **Why:** Large static 4:5 preview card wastes ~350px of vertical space even when no editing is happening; duplicates the hero preview already shown in the right-side panel
@@ -551,7 +563,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### All Repos
 
-- [ ] **Coordinate D1 migration strategy across repos**
+- [x] **Coordinate D1 migration strategy across repos**
   - **Repo(s):** all
   - **Area:** Infra / DB
   - **Why:** Migrations exist in multiple repos targeting the same D1 database with no single canonical runner. This risks schema drift and accidental double-application.
@@ -723,7 +735,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ## Medium Priority
 
-- [ ] **Remove PRAGMA introspection from /api/uploads**
+- [x] **Remove PRAGMA introspection from /api/uploads**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Performance
   - **Why:** Dynamically discovers schema of D1 collections table using PRAGMA before writing, adding an unnecessary synchronous database roundtrip.
@@ -732,7 +744,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** medium
   - **Notes:** REVIEW-008-004
 
-- [ ] **Implement async compensation rollback for R2 uploads on D1 failure**
+- [x] **Implement async compensation rollback for R2 uploads on D1 failure**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Reliability
   - **Why:** If D1 update fails, it is silently ignored, leaving an orphaned object in the R2 bucket and increasing storage costs.
@@ -759,7 +771,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Notes:** REVIEW-009-002
 
-- [ ] **Mitigate Prompt Injection on OpenAI image generation**
+- [x] **Mitigate Prompt Injection on OpenAI image generation**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Security / AI Assist
   - **Why:** Product name, notes, and tags are directly concatenated into OpenAI prompt instructions. A hostile input could bypass system constraints and alter output significantly.
@@ -777,7 +789,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** low
   - **Notes:** REVIEW-009-004
 
-- [ ] **Parallelise R2 operations and handle partial failures (generate-image)**
+- [x] **Parallelise R2 operations and handle partial failures (generate-image)**
   - **Repo(s):** admin_olive_and_ivory_gifts
   - **Area:** Reliability / Performance
   - **Why:** R2 put calls for large, medium, thumb happen linearly, increasing response latency. Partial failure on `updateItemImage` creates permanent bucket orphans.
