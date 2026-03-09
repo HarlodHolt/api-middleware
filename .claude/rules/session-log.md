@@ -15,6 +15,7 @@ Very short rolling memory for recent work and unresolved follow-up.
 - Day 003 review complete (2026-03-03): admin login route. P0: no rate limiting on /api/auth/login (middleware matcher excludes api/auth). P1s: non-constant-time password compare, unguarded request.json(), no password length limit, DB.execute() silent failure, null password_hash crash. P2s: SELECT *, CSRF token unused, debug fields in /me response, email case inconsistency. Tasks REVIEW-003-001 through 003-011 added to TASKS.md.
 - Day 007 review complete (2026-03-03): PATCH /api/orders/:id/status + coreRoutes.ts 500 LOC split plan. P1s: non-atomic stock restore before UPDATE (REVIEW-007-002), PUT /orders/:id bypasses state machine guards (REVIEW-007-003), logAction missing try/catch (REVIEW-007-004), split plan for 4835-line coreRoutes.ts into 15 modules (REVIEW-007-001). P2s: reason length, batch stock upserts, log 409s, SELECT * narrowing. Full split plan at docs/reviews/2026-03-03-day007-PATCH-orders-id-status.md#F.
 - api-middleware dist is gitignored; after source changes run `npm run build` in workspace root, then copy dist/index.{js,d.ts} to consumer node_modules/api-middleware/dist/ (it is a plain copy, not symlinked in olive_and_ivory_api).
+- Storefront signing migrated to shared api-middleware (05f1fd1). Both admin and storefront now re-export from api-middleware — no independent signing implementations remain.
 
 ## Do Not Keep Here
 
