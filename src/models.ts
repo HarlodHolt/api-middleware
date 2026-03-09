@@ -1,10 +1,4 @@
-export type OrderStatus =
-  | 'pending'
-  | 'paid'
-  | 'packed'
-  | 'out_for_delivery'
-  | 'delivered'
-  | 'cancelled';
+export type OrderStatus = "pending" | "paid" | "packed" | "out_for_delivery" | "delivered" | "cancelled";
 
 export interface Order {
   id: string;
@@ -32,13 +26,13 @@ export interface Order {
   subtotal_cents: number;
   delivery_fee_cents: number;
   total_cents: number;
-  payment_provider?: 'manual' | 'stripe_checkout' | null;
-  payment_status?: 'pending' | 'paid' | 'failed' | 'cancelled' | null;
+  payment_provider?: "manual" | "stripe_checkout" | null;
+  payment_status?: "pending" | "paid" | "failed" | "cancelled" | null;
   payment_reference?: string | null;
   paid_at?: string | null;
   order_stock_restored?: number; // Admin specific, safe as optional
-  customer_email_status?: 'pending' | 'sent' | 'failed';
-  admin_email_status?: 'pending' | 'sent' | 'failed';
+  customer_email_status?: "pending" | "sent" | "failed";
+  admin_email_status?: "pending" | "sent" | "failed";
 }
 
 export interface OrderItem {
@@ -86,7 +80,7 @@ export interface Item {
   slug?: string;
   tags?: string | null;
   barcode_gtin?: string | null;
-  status: 'draft' | 'active' | 'archived';
+  status: "draft" | "active" | "archived";
   store?: string | null;
   brand?: string | null;
   supplier_url?: string | null;
@@ -122,7 +116,7 @@ export interface Collection {
   hero_image_key?: string;
   gallery_image_keys?: string | null;
   price_cents: number;
-  status: 'draft' | 'active' | 'archived';
+  status: "draft" | "active" | "archived";
   created_at?: string;
   updated_at?: string;
 }
@@ -175,7 +169,7 @@ export interface Gift {
   hero_focal_y?: number | null;
   hero_crop_json?: string | null;
   hero_variants_json?: string | null;
-  status?: 'draft' | 'active' | 'archived' | null;
+  status?: "draft" | "active" | "archived" | null;
   sort_order?: number | null;
   created_at?: string;
   updated_at?: string;

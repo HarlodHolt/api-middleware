@@ -42,7 +42,7 @@ export async function signedApiFetch<T = Record<string, unknown>>(args: {
   clientHeaders?: Headers | Record<string, string> | null;
 }) {
   const { baseUrl, secret } = args;
-  
+
   if (!secret) {
     return {
       ok: false,
@@ -72,7 +72,7 @@ export async function signedApiFetch<T = Record<string, unknown>>(args: {
   const cfConnectingIp = getHeader("cf-connecting-ip")?.trim();
   const forwardedFor = getHeader("x-forwarded-for")?.trim();
   const userAgent = getHeader("user-agent")?.trim();
-  
+
   if (cfConnectingIp) headers["cf-connecting-ip"] = cfConnectingIp;
   if (forwardedFor) headers["x-forwarded-for"] = forwardedFor;
   if (userAgent) headers["user-agent"] = userAgent;

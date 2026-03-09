@@ -1,10 +1,12 @@
 export interface ApiErrorPayload {
   ok?: boolean;
-  error?: {
-    code?: string;
-    message?: string;
-    correlation_id?: string;
-  } | string;
+  error?:
+    | {
+        code?: string;
+        message?: string;
+        correlation_id?: string;
+      }
+    | string;
   message?: string;
   missing?: string[];
   correlation_id?: string;
@@ -46,7 +48,7 @@ function extractErrorDetails(payload: ApiErrorPayload | undefined, responseCorre
 }
 
 /**
- * A shared wrapper around the native `fetch` API that automatically throws `FetchJsonError` 
+ * A shared wrapper around the native `fetch` API that automatically throws `FetchJsonError`
  * on non-2xx responses or when the `api-middleware` returns a structured `{ ok: false }` error payload.
  */
 export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
@@ -87,7 +89,7 @@ export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit)
       response.status,
       undefined,
       responseCorrelationId,
-      responseRequestId
+      responseRequestId,
     );
   }
 
@@ -102,17 +104,15 @@ export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit)
   if (!response.ok || hasStructuredError) {
     const details = extractErrorDetails(payload, responseCorrelationId);
     const missing = Array.isArray(payload?.missing) ? payload?.missing.join(", ") : "";
-    const baseMessage =
-      details.message ||
-      (missing ? `Missing: ${missing}` : `Request failed (${response.status}).`);
-    
+    const baseMessage = details.message || (missing ? `Missing: ${missing}` : `Request failed (${response.status}).`);
+
     let message = "";
     if (details.code) message += `${details.code}: `;
     message += baseMessage;
 
     const ref = responseRequestId || details.correlationId;
     if (ref && !message.includes(ref)) {
-       message += ` Ref: ${ref}`;
+      message += ` Ref: ${ref}`;
     }
 
     throw new FetchJsonError(message, response.status, payload, details.correlationId, responseRequestId);
