@@ -1,4 +1,4 @@
-export type OrderStatus = "pending" | "paid" | "packed" | "out_for_delivery" | "delivered" | "cancelled";
+export type OrderStatus = "pending" | "paid" | "packed" | "out_for_delivery" | "delivered" | "cancelled" | "expired";
 
 export interface Order {
   id: string;
