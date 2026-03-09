@@ -95,6 +95,7 @@ export interface Item {
   unit_size?: number | null;
   unit_type?: "g" | "ml" | "each" | "pair" | "set" | null;
   use_whole_set?: boolean | null;
+  total_individual_qty?: number | null;
   price_per_unit_cents?: number | null;
   created_at?: string;
   updated_at?: string;

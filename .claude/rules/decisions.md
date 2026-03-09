@@ -32,6 +32,20 @@ Durable technical and product decisions that should keep future work consistent.
 
 - Deploy from clean worktrees when the local repo has unrelated unstaged changes.
 
+### Shared Secrets (HMAC)
+
+- **Pages apps (storefront, admin):** `HMAC_SHARED_SECRET` must be set via `wrangler pages secret put` only. Do NOT add `[vars] HMAC_SHARED_SECRET` to wrangler.toml — it conflicts with Pages secrets and causes "Binding name already in use" deploy failures.
+- **API worker:** `HMAC_SHARED_SECRET` is set via `[vars]` in wrangler.toml (Workers don't have this conflict).
+- The storefront uses a local `src/lib/signing.ts` (self-contained, no `api-middleware` import) because OpenNext cannot resolve `api-middleware` runtime exports.
+- **"Invalid signature" errors** almost always mean the secret value differs between the API worker and the calling frontend.
+
+### Storefront Build
+
+- `.env.production` sets `API_BASE_URL=https://api.oliveandivorygifts.com` — Next.js bakes this at build time.
+- `.env.development.local` sets localhost values for `next dev` only.
+- Never put `API_BASE_URL` in `.env.local` — it gets baked into production builds.
+- Deploy from `.open-next/assets` (not `.open-next/cloudflare`).
+
 ## Update Triggers
 
 - Any change that alters future implementation across more than one task
