@@ -25,6 +25,17 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ### High Priority
 
+#### API Middleware
+
+- [x] **Remove HMAC debug logging** · DEBUG-HMAC-001
+  - **Repo(s):** api-middleware
+  - **Area:** Security / Cleanup
+  - **Why:** Temporary `[HMAC_DEBUG]` console.error added to `src/runtime/middlewares/auth.ts` to diagnose signature mismatches. Must be removed after diagnosis.
+  - **Acceptance:**
+    - Debug logging block removed from `auth.ts`
+    - Rebuild and redeploy API worker with clean dist
+  - **Priority:** high
+
 #### API Worker
 
 - [x] **Split `index.ts` below 500 lines** · LOC-API-001
@@ -797,3 +808,30 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Wrap uploads in `Promise.all` and ensure compensating deletions if D1 write fails.
   - **Priority:** low
   - **Notes:** REVIEW-009-005
+
+- [ ] **Stock reservation race condition — silent UPDATE failure allows overselling**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Data Integrity
+  - **Why:** `reserveOrderInventoryStock` UPDATE has `WHERE stock_on_hand >= ?` but if it affects 0 rows (concurrent reservation), no error is raised. Order proceeds without stock decremented.
+  - **Acceptance:**
+    - Check `meta.changes` on stock UPDATE results; roll back order if 0
+  - **Priority:** high
+  - **Notes:** REVIEW-010-001
+
+- [ ] **Restore query resolves gifts differently from reservation**
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Data Integrity
+  - **Why:** Reserve uses `gift_id` directly from cart. Restore uses complex COALESCE with collection_id fallback. Mismatch can restore wrong inventory items.
+  - **Acceptance:**
+    - Align restore gift resolution with reserve logic, or store reserved inventory_ids on the order for exact restore
+  - **Priority:** medium
+  - **Notes:** REVIEW-010-002
+
+- [ ] **HMAC signing path inconsistency — storefront signs without query string**
+  - **Repo(s):** olive_and_ivory_gifts, api-middleware
+  - **Area:** Security
+  - **Why:** Storefront signs `path` only (no query string). Server has legacy fallback that retries without query string. If fallback is removed, all GET requests with params will break.
+  - **Acceptance:**
+    - Align signing to include query string, or document the fallback as permanent
+  - **Priority:** low
+  - **Notes:** REVIEW-010-003
