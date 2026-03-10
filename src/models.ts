@@ -2,6 +2,7 @@ export type OrderStatus = "pending" | "paid" | "packed" | "out_for_delivery" | "
 
 export interface Order {
   id: string;
+  order_number?: number | null;
   created_at: string;
   status: OrderStatus;
   customer_name: string;
