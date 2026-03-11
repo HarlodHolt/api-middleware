@@ -1,8 +1,8 @@
 name: CI
 
-# Lock down the default GITHUB_TOKEN to read-only.
 permissions:
   contents: read
+  pull-requests: read
 
 on:
   push:
@@ -10,27 +10,41 @@ on:
   pull_request:
 
 jobs:
-  build:
+  root:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
-      # actions/checkout v4.2.2 — pinned to immutable SHA (supply chain protection).
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      # actions/setup-node v4.1.0 — pinned to immutable SHA.
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
         with:
           node-version: 22.x
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install
         run: npm ci
-      - name: Lint
-        run: npm run lint
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Test
-        run: npm test
-      - name: Build
-        run: npm run build
-      # Deployment is handled automatically by Cloudflare's Git integration on push to main.
+      - name: AI rules check
+        run: npm run ai:rules:check
+      - name: PR template check
+        if: github.event_name == 'pull_request'
+        run: npm run ai:pr:check
+      - name: Root CI Checks
+        run: npm run test:ci
+
+  api:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install
+        run: npm ci
+      - name: API Secret-Safe Checks
+        run: npm run test:harness -- --scope=api

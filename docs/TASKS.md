@@ -23,6 +23,18 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 ## To Do
 
+### AI Readiness Program
+
+- [x] **Execute AI readiness backlog (cross-repo)** · AI-READINESS-001
+  - **Repo(s):** api-middleware, olive_and_ivory_api, olive_and_ivory_gifts, admin_olive_and_ivory_gifts
+  - **Area:** Architecture / CI / Testing / DX
+  - **Why:** Establishes enforceable guardrails for AI-assisted coding (placement, testing, contracts, file size, PR evidence).
+  - **Acceptance:**
+    - P0 tasks in [AI_READINESS_TASKS.md](./AI_READINESS_TASKS.md) complete
+    - CI and PR template checks active in all repos
+  - **Priority:** high
+  - **Status:** COMPLETE (2026-03-11) — Added AI rule enforcement scripts, PR template validation, and CI gating updates across all repos.
+
 ### High Priority
 
 #### API Middleware

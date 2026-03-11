@@ -20,8 +20,16 @@
     "lint": "biome check biome.json package.json tsconfig.json README.md MIGRATION.md src tests scripts examples .github/workflows",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test ./tests/*.test.ts",
+    "db:check": "node scripts/check-db-schema-drift.mjs",
+    "test:prepush": "node scripts/local-test-harness.mjs",
+    "test:ci": "npm run lint && npm run typecheck && npm run db:check && npm run test && npm run build",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "test:harness": "node scripts/local-test-harness.mjs",
+    "test:harness:full": "node scripts/local-test-harness.mjs --full",
     "guard:runtime": "node --import tsx scripts/check-runtime-imports.ts",
-    "pack:check": "npm pack --dry-run"
+    "pack:check": "npm pack --dry-run",
+    "ai:rules:check": "node scripts/ci-enforce-ai-rules.mjs",
+    "ai:pr:check": "node scripts/validate-pr-template.mjs"
   },
   "dependencies": {
     "hono": "^4.12.3"
