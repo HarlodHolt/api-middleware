@@ -156,7 +156,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Status:** COMPLETE (2026-03-07)
     - Created 12 focused files: `australianAddress.ts`, 4 custom hooks (useCheckoutForm, useDeliveryRules, useDeliveryQuote, useAddressAutocomplete), 5 UI components (OrderSummary, DeliveryDetailsSection, BillingDetailsSection, AddressSection, ConfirmAddressModal), CheckoutFields primitives, and refactored orchestrator (~120 lines)
 
-- [ ] **Implement `/contact` page form submission**
+- [x] **Implement `/contact` page form submission**
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** CX
   - **Why:** The contact page renders a form but has no submission handler. Customers expecting to send an enquiry get no feedback and no message is delivered.
@@ -165,6 +165,8 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Success and error states shown to user
     - Rate limited at middleware level
   - **Priority:** high
+  - **Status:** COMPLETE (2026-03-11)
+    - Contact handler POST /api/contact sends via Brevo transactional email. Rate limited at 3 req/60s per IP using D1-backed api_request_rate_limits table.
 
 - [ ] **Replace remaining browse page console errors with structured event logs**
   - **Repo(s):** olive_and_ivory_gifts
