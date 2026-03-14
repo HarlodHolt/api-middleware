@@ -35,18 +35,23 @@ function extractTagFacets(rows: Array<Record<string, unknown>>): string[] {
   const set = new Set<string>();
   for (const row of rows) {
     if (!row.tags) continue;
-    String(row.tags)
+    for (const t of String(row.tags)
       .split(",")
       .map((t) => t.trim())
-      .filter(Boolean)
-      .forEach((t) => set.add(t));
+      .filter(Boolean)) {
+      set.add(t);
+    }
   }
   return [...set].sort();
 }
 
 // ── isPlaceholderVariantSlug / getDisplayVariantName (from collectionDisplay) ──
 function isPlaceholderVariantSlug(value: string | null | undefined): boolean {
-  return String(value || "").trim().toLowerCase() === "default";
+  return (
+    String(value || "")
+      .trim()
+      .toLowerCase() === "default"
+  );
 }
 
 function getDisplayVariantName(value: string | null | undefined): string {
@@ -137,10 +142,11 @@ test("extractTagFacets: single row with comma-separated tags", () => {
 });
 
 test("extractTagFacets: deduplicates across rows", () => {
-  assert.deepEqual(
-    extractTagFacets([{ tags: "For Her, Wellness" }, { tags: "Wellness, Gourmet Food" }]),
-    ["For Her", "Gourmet Food", "Wellness"]
-  );
+  assert.deepEqual(extractTagFacets([{ tags: "For Her, Wellness" }, { tags: "Wellness, Gourmet Food" }]), [
+    "For Her",
+    "Gourmet Food",
+    "Wellness",
+  ]);
 });
 
 test("extractTagFacets: ignores empty/null tags", () => {
@@ -356,7 +362,7 @@ test("parseBrowseQuery: repeated category params", () => {
 
 test("parseBrowseQuery: parses metric filters", () => {
   const q = parseBrowseQuery(
-    new URLSearchParams("unitCountMin=2&unitCountMax=10&weightMin=100&weightMax=500&volumeMin=50&volumeMax=750")
+    new URLSearchParams("unitCountMin=2&unitCountMax=10&weightMin=100&weightMax=500&volumeMin=50&volumeMax=750"),
   );
   assert.equal(q.unitCountMin, 2);
   assert.equal(q.unitCountMax, 10);
