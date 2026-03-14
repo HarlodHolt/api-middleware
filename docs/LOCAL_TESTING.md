@@ -12,6 +12,8 @@ Use this as the quick reference for what can be run locally in each repo.
 
 - Run commands from the repo they belong to.
 - `npm run dev` is for local iteration; build and lint commands are the minimum pre-push checks.
+- Git `pre-push` hook runs `npm run test:prepush` from repo root when hooks are installed.
+- Install hooks once per clone with `npm run hooks:install`.
 - The API worker supports a remote-data local harness via `npm run dev:remote`.
 - The storefront can point at the local API worker by setting `API_BASE_URL=http://127.0.0.1:8787` in `.env.local`.
 - The admin app is still on `@cloudflare/next-on-pages`, so its plain `next dev` flow does not provide remote D1 bindings.
@@ -23,15 +25,24 @@ Use this as the quick reference for what can be run locally in each repo.
 This repo is the `api-middleware` package.
 
 ```bash
+npm run test:harness
+npm run test:harness -- --scope=root
+npm run test:harness:full
 npm run build
 npm run lint
 npm run typecheck
+npm run db:check
 npm run test
 npm run guard:runtime
 npm run pack:check
 ```
 
 Use these when changing middleware behavior, adapters, runtime helpers, or package exports.
+
+`test:harness` runs a quick cross-repo suite (`root`, `api`, `storefront`, `admin`) and stops on first failure.
+Use `--scope=root,api,storefront,admin` to run only selected repos.
+`db:check` validates `event_logs` schema parity across API/Admin migrations and logger insert-column compatibility.
+`test:ci` runs root-only secret-safe CI checks (`lint`, `typecheck`, `db:check`, `test`, `build`).
 
 ---
 
@@ -43,10 +54,19 @@ Use these when changing middleware behavior, adapters, runtime helpers, or packa
 npm run dev
 npm run dev:remote
 npm run build
+npm run test:routes-contract
+npm run test:routes-smoke
+npm run test:routes-verbose
 npm run test:collection-ai-schema
 npm run test:gift-item-relations
 npx tsc --noEmit
 ```
+
+`test:routes-verbose` auto-generates one test file per route in `src/lib/apiRouteRegistry.ts` and runs route-level edge-case probes (auth failures, malformed JSON, randomized input/query variation). These tests intentionally execute route handlers via HTTP request flow (`app.fetch`) so new code paths are exercised indirectly through real endpoint behavior.
+Detailed file-level documentation for the API testing stack is in:
+- `/Users/yuri_baker/dev/olive_and_ivory_api/tests/README.md`
+- `/Users/yuri_baker/dev/olive_and_ivory_api/tests/TEST_COVERAGE_MATRIX.md`
+- `/Users/yuri_baker/dev/olive_and_ivory_api/tests/ROUTE_TEST_INVENTORY.md`
 
 ### Useful manual probes
 
@@ -75,6 +95,11 @@ npm run build:next
 npm run pages:verify-output
 npm run pages:build
 npm run preview
+npm run test:unit
+npm run test:e2e:install
+npm run test:e2e:smoke
+npm run test:e2e:deep
+npm run test:e2e
 ```
 
 ### Recommended local API integration flow
@@ -85,6 +110,12 @@ npm run preview
 4. Run `npm run dev` in the storefront repo.
 
 This lets the UI exercise the local worker while the worker uses remote Cloudflare bindings.
+
+Useful contact route probe (run while storefront dev server is up):
+
+```bash
+curl -i -X POST http://127.0.0.1:3100/api/contact -H 'Content-Type: application/json' -d '{"name":"A","email":"bad","message":"short"}'
+```
 
 ---
 

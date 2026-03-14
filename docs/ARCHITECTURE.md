@@ -74,6 +74,8 @@ Every request gets two IDs:
 
 These flow from the browser → storefront → API worker → D1 logs, so any request can be traced end-to-end across all services.
 
+For full logging field definitions and producer behavior, see [LOGGING.md](./LOGGING.md).
+
 ---
 
 ## Storefront → API: Proxy Pattern

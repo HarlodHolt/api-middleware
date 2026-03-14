@@ -31,6 +31,8 @@ Durable technical and product decisions that should keep future work consistent.
 ### Deploy Safety
 
 - Deploy from clean worktrees when the local repo has unrelated unstaged changes.
+- Git pre-push hook is enforced via `core.hooksPath=.githooks` and runs `npm run test:prepush`.
+- CI must remain secret-safe: use test commands that do not require Cloudflare secrets/bindings.
 
 ### Shared Secrets (HMAC)
 
@@ -50,4 +52,3 @@ Durable technical and product decisions that should keep future work consistent.
 
 - Any change that alters future implementation across more than one task
 - Any new platform or contract rule that should be applied consistently
-

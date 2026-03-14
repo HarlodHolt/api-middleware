@@ -35,6 +35,226 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Status:** COMPLETE (2026-03-11) — Added AI rule enforcement scripts, PR template validation, and CI gating updates across all repos.
 
+### Pre-Launch Audit (2026-03-12)
+
+#### Critical
+
+- [ ] **Rotate and remove hardcoded `HMAC_SHARED_SECRET` from `wrangler.toml`** · LAUNCH-001
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security / Secrets
+  - **Why:** `HMAC_SHARED_SECRET` is committed in plaintext in `[vars]`. Anyone with repo access can forge authenticated API requests. Must rotate the secret and move to `wrangler secret put`.
+  - **Acceptance:**
+    - Secret removed from `wrangler.toml` `[vars]`
+    - New secret set via `wrangler secret put HMAC_SHARED_SECRET`
+    - All frontends updated with rotated value via Pages secrets
+  - **Priority:** critical
+
+- [ ] **Gate or remove debug/test endpoints from production** · LAUNCH-002
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security
+  - **Why:** `/stripe/test-event`, `/stripe/test-checkout`, `/log-test`, `/health/secrets` are in `PUBLIC_PATHS` (bypass HMAC) and registered unconditionally. Attackers can inject fake Stripe events, flood logs, and enumerate secrets.
+  - **Acceptance:**
+    - Endpoints either removed or gated behind an environment check (e.g. `CF_ENVIRONMENT !== 'production'`)
+    - Removed from `PUBLIC_PATHS` if kept
+  - **Priority:** critical
+
+#### High — Security
+
+- [ ] **Document and configure Google OAuth secrets in Pages** · LAUNCH-003
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Auth / Secrets
+  - **Why:** `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` are required at runtime but absent from `wrangler.toml`, `DEPENDENCIES.md`, and `ARCHITECTURE.md`. Silent auth failure if not set.
+  - **Acceptance:**
+    - Secrets confirmed set in Cloudflare Pages
+    - Documented in `ARCHITECTURE.md` env var table
+  - **Priority:** high
+
+- [ ] **Replace `hasSuspiciousInput` with proper XSS sanitisation** · LAUNCH-004
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security / Input Validation
+  - **Why:** Only checks for `<script` and `javascript:`. Bypassed by `<img onerror>`, `<svg onload>`, HTML entity encoding, CSS injection. Admin UIs render API data, so stored XSS is possible.
+  - **Acceptance:**
+    - Proper sanitisation library (e.g. DOMPurify) or strict output escaping in place
+    - Test coverage for common XSS vectors
+  - **Priority:** high
+
+- [ ] **Add per-account lockout on admin login** · LAUNCH-005
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Security / Auth
+  - **Why:** Per-IP rate limiting (10/min) exists but no per-account lockout. Attacker can rotate IPs for unlimited credential-stuffing.
+  - **Acceptance:**
+    - Account locked after N failed attempts (e.g. 5) with exponential backoff or hard lockout
+  - **Priority:** high
+
+- [ ] **Add CSRF token for admin state-changing routes** · LAUNCH-006
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Security / CSRF
+  - **Why:** Protection relies solely on `sameSite: lax`. Insufficient if admin is loaded in a cross-origin frame or via top-level navigation.
+  - **Acceptance:**
+    - Double-submit `X-CSRF-Token` pattern on all admin mutations
+  - **Priority:** high
+
+#### High — Reliability & Ops
+
+- [ ] **Implement automated D1 backup schedule** · LAUNCH-007
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Data / Recovery
+  - **Why:** D1 has no automatic point-in-time restore. A bad migration or accidental DELETE = permanent data loss.
+  - **Acceptance:**
+    - Scripted `wrangler d1 export` running on daily/weekly schedule
+    - Backup files stored in R2 or external storage
+  - **Priority:** high
+
+- [ ] **Add outbound alerting sink (Slack/PagerDuty/email)** · LAUNCH-008
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Observability / Alerting
+  - **Why:** `runObservabilityAlerts` only writes to D1 — errors are only visible by polling admin UI. Stripe webhook failures, 5xx spikes, and payment issues go unnoticed.
+  - **Acceptance:**
+    - Webhook to Slack (or similar) triggered on 5xx spike or webhook failure
+  - **Priority:** high
+
+- [ ] **Wrap all `logAction`/`writeAuditLog` calls in try/catch** · LAUNCH-009
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Error Handling
+  - **Why:** Many `logAction` calls in `orderWriteRoutes.ts` are not inside try/catch. D1 log failure will 500 the business operation.
+  - **Acceptance:**
+    - All logging calls wrapped so business operation succeeds even if log write fails
+  - **Priority:** high
+
+- [ ] **Add staging environment for API worker** · LAUNCH-010
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** CI/CD
+  - **Why:** Docs reference `--env staging` but no `[env.staging]` exists in `wrangler.toml`. All deploys go directly to production.
+  - **Acceptance:**
+    - `[env.staging]` in `wrangler.toml` with separate D1 binding
+    - Deploy-to-staging step documented
+  - **Priority:** high
+
+- [ ] **Automate deploy pipeline (deploy-on-push-to-main)** · LAUNCH-011
+  - **Repo(s):** olive_and_ivory_gifts, admin_olive_and_ivory_gifts, olive_and_ivory_api
+  - **Area:** CI/CD
+  - **Why:** All deploys are manual CLI steps. Risk of deploying untested local builds or from dirty worktrees.
+  - **Acceptance:**
+    - CI workflow deploys on push to main after tests pass (or Cloudflare Pages GitHub integration enabled)
+  - **Priority:** high
+
+- [ ] **Fix concurrent partial refund race on `refunded_cents`** · LAUNCH-012
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Data Integrity / Payments
+  - **Why:** Concurrent partial refunds can corrupt `refunded_cents` because UPDATE reads a stale value. Known open deficiency with real money.
+  - **Acceptance:**
+    - Serialised per-order lock or atomic UPDATE (e.g. `SET refunded_cents = refunded_cents + ?`)
+  - **Priority:** high
+
+- [ ] **Fix `/health` hardcoded `environment: "test"`** · LAUNCH-013
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Observability
+  - **Why:** Health endpoint always returns `"environment": "test"` regardless of actual runtime. Monitoring tools will be permanently confused.
+  - **Acceptance:**
+    - Environment derived from Worker binding or `CF_ENVIRONMENT`
+  - **Priority:** high
+
+#### Medium
+
+- [ ] **Enforce prompt input length limits before OpenAI calls** · LAUNCH-014
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security / AI
+  - **Why:** Collection names/descriptions interpolated into prompts with no truncation. Prompt injection risk.
+  - **Acceptance:**
+    - Hard character limit enforced before prompt construction
+  - **Priority:** medium
+
+- [ ] **Add `sitemap.xml` and `robots.txt`** · LAUNCH-015
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** SEO
+  - **Why:** No sitemap for search engines. Next.js supports `sitemap.ts` / `robots.ts` natively.
+  - **Acceptance:**
+    - Dynamic sitemap listing `/browse`, `/collections/*`, and `/product/*` pages
+    - `robots.txt` allowing crawlers
+  - **Priority:** medium
+
+- [ ] **Add OpenGraph/Twitter `og:image` to all storefront pages** · LAUNCH-016
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** SEO / Social
+  - **Why:** `og:image` only set on collection detail pages. Other pages render blank social cards.
+  - **Acceptance:**
+    - Default brand `og:image` on all pages; product-specific on detail pages
+  - **Priority:** medium
+
+- [ ] **Add typecheck and lint to admin CI** · LAUNCH-017
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** CI/CD
+  - **Why:** Admin CI only runs one Playwright health spec. No typecheck, lint, or `pages:build`. Build breakage only caught on manual deploy.
+  - **Acceptance:**
+    - CI runs `tsc --noEmit`, lint, and `pages:build`
+  - **Priority:** medium
+
+- [ ] **Automate `event_logs` purge via cron** · LAUNCH-018
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Data / Performance
+  - **Why:** 30-day retention purge is manual and quarterly. D1 storage and query performance will degrade.
+  - **Acceptance:**
+    - Scheduled cron prunes `event_logs` older than 30 days
+  - **Priority:** medium
+
+- [ ] **Replace raw `console.log` in Stripe webhook and `expireStaleOrders` with structured logging** · LAUNCH-019
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Observability
+  - **Why:** Raw console calls bypass structured log sinks and redaction. Sensitive fields could leak.
+  - **Acceptance:**
+    - All logging goes through `writeEventLog` or equivalent
+  - **Priority:** medium
+
+- [ ] **Add ownership enforcement to customer account order lookup** · LAUNCH-020
+  - **Repo(s):** olive_and_ivory_gifts, olive_and_ivory_api
+  - **Area:** Security / Data
+  - **Why:** Order lookup passes OAuth email to API but no enforcement that a logged-in user can only see their own orders. Latent data exposure.
+  - **Acceptance:**
+    - API validates that requesting user's email matches order `customer_email`
+  - **Priority:** medium
+
+- [ ] **Confirm R2 image keys use cryptographically random UUIDs** · LAUNCH-021
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security
+  - **Why:** If image keys are predictable, unpublished product images are discoverable.
+  - **Acceptance:**
+    - Audit confirms `crypto.randomUUID()` or equivalent used for all image keys
+  - **Priority:** medium
+
+#### Low
+
+- [ ] **Change `Referrer-Policy` from `no-referrer` to `strict-origin-when-cross-origin`** · LAUNCH-022
+  - **Repo(s):** olive_and_ivory_api
+  - **Area:** Security / Stripe
+  - **Why:** `no-referrer` strips origin on Stripe redirect back to `/order-confirmation`.
+  - **Priority:** low
+
+- [ ] **Add `Cache-Control: s-maxage` to browse/catalog responses** · LAUNCH-023
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Performance
+  - **Why:** Every browse request hits D1 with no edge caching.
+  - **Priority:** low
+
+- [ ] **Add bundle size monitoring** · LAUNCH-024
+  - **Repo(s):** olive_and_ivory_gifts, admin_olive_and_ivory_gifts
+  - **Area:** Performance
+  - **Why:** No size budget in CI. Tiptap in storefront `dependencies` may inflate customer bundle unnecessarily.
+  - **Priority:** low
+
+- [ ] **Add automated accessibility testing (axe-core)** · LAUNCH-025
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Accessibility
+  - **Why:** No a11y test coverage. WCAG 2.1 AA is baseline for AU e-commerce.
+  - **Priority:** low
+
+- [ ] **Make pre-push hook auto-install on clone** · LAUNCH-026
+  - **Repo(s):** api-middleware
+  - **Area:** DX
+  - **Why:** `core.hooksPath` requires manual `npm run hooks:install` after clone. Relies on developer discipline.
+  - **Priority:** low
+
+---
+
 ### High Priority
 
 #### API Middleware
@@ -239,6 +459,61 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
   - **Priority:** high
   - **Notes:** REVIEW-007-004 — Day 007 review.
   - **Status:** COMPLETE (2026-03-08) — Wrapped `logAction` inside `patchOrderStatusHandler` in try/catch block.
+
+---
+
+### Browse Module Review (2026-03-12)
+
+#### Storefront
+
+- [x] **Fix NaN propagation in `parseBrowseQuery` for non-numeric page/pageSize** · REVIEW-BROWSE-001
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Browse / Input Validation
+  - **Why:** `Number("abc")` = NaN, `Math.max(1, NaN)` = NaN. Non-numeric `page` or `pageSize` params produce NaN instead of defaults.
+  - **Acceptance:**
+    - Non-numeric page defaults to 1, non-numeric pageSize defaults to 18
+  - **Priority:** high
+  - **Status:** COMPLETE (2026-03-12) — Added `|| 1` / `|| 18` NaN fallbacks in `parseBrowseQuery`.
+
+- [ ] **Add TTL or invalidation to `tableExistsCache`** · REVIEW-BROWSE-002
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Browse / Runtime
+  - **Why:** Module-level `Map` persists across requests in CF isolates. After a migration adds a table, cache returns stale `false` until isolate recycles.
+  - **Acceptance:**
+    - Cache has a TTL (e.g. 60s) or is request-scoped
+  - **Priority:** medium
+
+- [ ] **Add error handling around `getBrowseItems` D1 queries** · REVIEW-BROWSE-003
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Browse / Reliability
+  - **Why:** `Promise.all` with 4-6 queries rejects entirely if any single query fails, producing an unhandled 500 with no diagnostic context.
+  - **Acceptance:**
+    - Queries wrapped in try/catch with structured error response
+  - **Priority:** medium
+
+- [ ] **Implement `flags` filter (parsed but never applied)** · REVIEW-BROWSE-004
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Browse / Filters
+  - **Why:** `flags` is accepted in `BrowseQuery` and parsed from URL params, but no WHERE clause is generated. Facet always returns empty array.
+  - **Acceptance:**
+    - Either implement the filter or remove the dead field
+  - **Priority:** low
+
+- [ ] **Deduplicate filter-building logic between main and fallback paths** · REVIEW-BROWSE-005
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Browse / DX
+  - **Why:** Lines 230-258 and 420-448 build near-identical WHERE clauses. Divergence risk.
+  - **Acceptance:**
+    - Shared filter builder function used by both paths
+  - **Priority:** low
+
+- [ ] **Split browse.ts below 500 lines** · REVIEW-BROWSE-006
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** DX / Architecture
+  - **Why:** File is 523 lines. Collections-fallback path (lines 419-511) is a natural extraction candidate.
+  - **Acceptance:**
+    - No single file exceeds 500 lines
+  - **Priority:** low
 
 ---
 

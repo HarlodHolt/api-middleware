@@ -22,6 +22,7 @@ Execution defaults and working style for this workspace.
 - A single feature module should do one thing well; split mixed-responsibility files before they become god components.
 - If logic already exists in a shared primitive, helper, or hook, reuse it instead of duplicating it.
 - If you find an existing file that exceeds 500 lines or mixes multiple responsibilities, either refactor it now or log it as a backlog item in `docs/TASKS.md`.
+- Always run the pre-push test gate before shipping code; treat failing checks as a release blocker unless explicitly waived.
 
 ## Git Defaults
 

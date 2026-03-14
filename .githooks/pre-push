@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${SKIP_PREPUSH_TESTS:-}" == "1" ]]; then
+  echo "Skipping pre-push tests because SKIP_PREPUSH_TESTS=1"
+  exit 0
+fi
+
+echo "Running pre-push test suite..."
+cd "$(git rev-parse --show-toplevel)"
+npm run test:prepush

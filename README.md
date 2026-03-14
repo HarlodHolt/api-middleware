@@ -49,7 +49,11 @@ npm install git+https://github.com/HarlodHolt/api-middleware.git#v0.1.1
 
 - `npm run lint`
 - `npm run typecheck`
+- `npm run db:check`
 - `npm run test`
+- `npm run test:prepush`
+- `npm run test:ci`
+- `npm run hooks:install`
 - `npm run build`
 - `npm run guard:runtime`
 
