@@ -17,6 +17,7 @@ Very short rolling memory for recent work and unresolved follow-up.
 - api-middleware dist is gitignored; after source changes run `npm run build` in workspace root, then copy dist/index.{js,d.ts} to consumer node_modules/api-middleware/dist/ (it is a plain copy, not symlinked in olive_and_ivory_api).
 - Storefront signing migrated to shared api-middleware (05f1fd1). Both admin and storefront now re-export from api-middleware — no independent signing implementations remain.
 - Testing gate hardening (2026-03-10): added root `db:check`, installed git pre-push hook (`.githooks/pre-push` -> `npm run test:prepush`), and added API route registry smoke coverage (`olive_and_ivory_api/tests/routes-smoke.test.ts`) to catch route/doc drift.
+- Email delivery e2e suite complete (2026-03-18): expanded from 21 to 36 tests covering IMAP, SMTP, Resend API, contact form, newsletter, rate limiting, HMAC-signed mx/send and order receipt endpoints. All 36 tests passing. Removed Brevo-specific references. Added HMAC signing utility for e2e. Two mailbox setup (test@ for general, hello@ for contact form). Reduced email wait to 5s initial + 15s expect timeout. Created separate playwright.email.config.ts without webServer block to avoid Cloudflare auth conflicts.
 
 ## Do Not Keep Here
 
