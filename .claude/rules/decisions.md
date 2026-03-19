@@ -33,6 +33,22 @@ Durable technical and product decisions that should keep future work consistent.
 - Deploy from clean worktrees when the local repo has unrelated unstaged changes.
 - Git pre-push hook is enforced via `core.hooksPath=.githooks` and runs `npm run test:prepush`.
 - CI must remain secret-safe: use test commands that do not require Cloudflare secrets/bindings.
+- No staging environment exists for the API worker — all `wrangler deploy` goes directly to production. Verify locally with `wrangler dev --remote` first.
+
+### api-middleware Build
+
+- `api-middleware` dist is gitignored; after source changes run `npm run build` in workspace root, then copy `dist/index.{js,d.ts}` to consumer `node_modules/api-middleware/dist/` (plain copy, not symlinked).
+
+### Inventory Display
+
+- "What's Included" items use `presentable_name` (falling back to `name`) with brand prefix formatted as `Brand — Presentable Name` when the brand is not already part of the name.
+- Standard tag vocabulary: "For Her", "For Him", "For Baby", "For Couple", "New Home", "Corporate", "Wellness", "Gourmet Food", "Wine & Spirits", "Candles & Scents", "Picnic".
+
+### Email & Testing
+
+- E2e email tests use two mailboxes: `test@` for general, `hello@` for contact form delivery.
+- Separate `playwright.email.config.ts` (no webServer block) avoids Cloudflare auth conflicts during email e2e.
+- Storefront signing is self-contained in `src/lib/signing.ts` because OpenNext cannot resolve `api-middleware` runtime exports.
 
 ### Shared Secrets (HMAC)
 

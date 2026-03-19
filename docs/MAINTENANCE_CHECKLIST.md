@@ -1,6 +1,6 @@
 # Maintenance Checklist
 
-> Last updated: 2026-03-05
+> Last updated: 2026-03-19
 > Owner: repo agent / Yuri
 > Scope: Recurring dev and deploy checklists
 
@@ -45,7 +45,7 @@ Local command reference: [LOCAL_TESTING.md](./LOCAL_TESTING.md)
 - [ ] If database schema changed: write a D1 migration file, do not edit existing migrations
 - [ ] If new env vars added: update `wrangler.toml` and document in `DEPENDENCIES.md`
 - [ ] Run TypeScript check: `npx tsc --noEmit`
-- [ ] Deploy to staging / preview before production: `wrangler deploy --env staging`
+- [ ] Deploy a preview build before production (no `[env.staging]` exists — all Worker deploys go directly to production, so verify locally first with `wrangler dev --remote`)
 
 ---
 

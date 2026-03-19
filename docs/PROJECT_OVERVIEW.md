@@ -1,6 +1,6 @@
 # Olive & Ivory Gifts — Project Overview
 
-> Last updated: 2026-02-28
+> Last updated: 2026-03-19
 > Owner: repo agent / Yuri
 > Scope: Top-level project summary
 

@@ -1,6 +1,6 @@
 # Outstanding Tasks & Improvements
 
-> Last updated: 2026-03-08
+> Last updated: 2026-03-19
 > Owner: repo agent / Yuri
 > Scope: Task backlog for the Olive & Ivory Gifts project
 
@@ -256,6 +256,19 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 ---
 
 ### High Priority
+
+#### Infrastructure
+
+- [ ] **Add www CNAME record in Cloudflare DNS** · INFRA-001
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** DNS / Infrastructure
+  - **Why:** `www.oliveandivorygifts.com` returns NXDOMAIN — users and tests hitting the www subdomain get DNS failures. Root domain resolves fine.
+  - **Acceptance:**
+    - CNAME record `www` → `oliveandivorygifts.com` (proxied) exists in Cloudflare DNS
+    - `nslookup www.oliveandivorygifts.com` resolves
+    - Storefront loads at both `oliveandivorygifts.com` and `www.oliveandivorygifts.com`
+  - **Priority:** high
+  - **Notes:** Root domain A records: 172.67.183.175, 104.21.64.118. Consider adding a Page Rule to redirect www → non-www (or vice versa) for SEO consistency.
 
 #### API Middleware
 
@@ -1124,3 +1137,61 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Align signing to include query string, or document the fallback as permanent
   - **Priority:** low
   - **Notes:** REVIEW-010-003
+
+---
+
+## Review Findings (2026-03-19)
+
+### Admin
+
+- [ ] **Admin auth endpoints use `{ success: true }` instead of canonical `{ ok: true, data: ... }` envelope**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** API Contracts
+  - **Why:** Auth routes (`/api/auth/login`, `/api/auth/logout`, `/api/auth/bootstrap`) return non-standard response shape. Client code must handle both patterns.
+  - **Acceptance:** All admin API routes return canonical `{ ok, data/error }` envelope
+  - **Priority:** medium
+  - **Notes:** REVIEW-2026-03-19-ADM-001
+
+- [ ] **Remove deprecated `/api/collections/ai-assist` route**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Cleanup
+  - **Why:** Route logs deprecation warning but still active. Verify no client calls it, then remove.
+  - **Acceptance:** Route removed; all clients use `/api/admin/collections/:id/ai-assist`
+  - **Priority:** low
+  - **Notes:** REVIEW-2026-03-19-ADM-002
+
+- [ ] **Remove legacy inventory compat endpoints (`PUT /api/items`, `GET /api/items/search`, `is_active` field)**
+  - **Repo(s):** admin_olive_and_ivory_gifts
+  - **Area:** Cleanup
+  - **Why:** Removal candidates since 2026-03-07. No UI callers per inventory audit docs.
+  - **Acceptance:** Endpoints removed; `is_active` column dropped or hidden
+  - **Priority:** low
+  - **Notes:** REVIEW-2026-03-19-ADM-003
+
+### Storefront
+
+- [ ] **Checkout create input validation (FIXED — deploy pending)**
+  - **Repo(s):** olive_and_ivory_gifts
+  - **Area:** Checkout / Security
+  - **Why:** Empty payload, invalid email, negative/extreme quantities returned 500 instead of 400. Input validation added before proxying to worker.
+  - **Acceptance:** All `.fixme()` tests in `checkout-guards.spec.ts` pass
+  - **Priority:** high — Status: FIXED in pre-prod, deploy pending
+  - **Notes:** REVIEW-2026-03-19-SF-001
+
+### Docs
+
+- [x] **MAINTENANCE_CHECKLIST.md references non-existent staging env**
+  - **Status:** FIXED (2026-03-19) — replaced with `wrangler dev --remote` guidance
+  - **Notes:** REVIEW-2026-03-19-DOC-001
+
+- [x] **session-log.md had entries 2+ weeks old**
+  - **Status:** FIXED (2026-03-19) — durable items promoted to decisions.md
+  - **Notes:** REVIEW-2026-03-19-DOC-002
+
+- [x] **DEPENDENCIES.md api-middleware version was wrong (said v0.1.1/v0.1.2, actual v0.1.4)**
+  - **Status:** FIXED (2026-03-19)
+  - **Notes:** REVIEW-2026-03-19-DOC-003
+
+- [x] **Stale last-updated dates on TASKS.md, ARCHITECTURE.md, PROJECT_OVERVIEW.md, MAINTENANCE_CHECKLIST.md**
+  - **Status:** FIXED (2026-03-19)
+  - **Notes:** REVIEW-2026-03-19-DOC-004

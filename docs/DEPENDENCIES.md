@@ -1,19 +1,19 @@
 # Dependencies
 
-> Last updated: 2026-03-05
+> Last updated: 2026-03-19
 > Owner: repo agent / Yuri
 > Scope: Inter-repo and external service dependency map
 
 ## Inter-Repo Dependencies
 
 ```
-api-middleware (repo version: v0.1.2)
-    ├── used by: olive_and_ivory_gifts  (git dependency)
-    ├── used by: admin_olive_and_ivory_gifts  (git dependency)
-    └── used by: olive_and_ivory_api  (git dependency)
+api-middleware (repo version: v0.1.4)
+    ├── used by: olive_and_ivory_gifts  (git dependency, pinned v0.1.4)
+    ├── used by: admin_olive_and_ivory_gifts  (git dependency, pinned v0.1.4)
+    └── used by: olive_and_ivory_api  (git dependency, pinned v0.1.4)
 ```
 
-All three application repos reference `api-middleware` as a **git dependency** in their `package.json`. This means they pin to specific git commits/tags rather than a published npm package. At the moment, consumers are still pinned to `v0.1.1` while the middleware repo has moved to `v0.1.2`.
+All three application repos reference `api-middleware` as a **git dependency** in their `package.json` (`github:HarlodHolt/api-middleware#v0.1.4`). This means they pin to specific git tags rather than a published npm package.
 
 **Implication:** When `api-middleware` is updated, each consuming repo must manually update its git reference and rebuild. There is no automatic version propagation.
 

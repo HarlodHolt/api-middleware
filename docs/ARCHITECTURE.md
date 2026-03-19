@@ -1,6 +1,6 @@
 # Architecture — How the Repos Interlink
 
-> Last updated: 2026-03-05
+> Last updated: 2026-03-19
 > Owner: repo agent / Yuri
 > Scope: System architecture and request flows
 
