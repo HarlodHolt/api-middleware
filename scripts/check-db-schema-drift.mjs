@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
@@ -102,8 +102,17 @@ function fail(message) {
   process.exit(1);
 }
 
+const availableRepos = REPOS.filter((repo) => existsSync(repo.migrationsDir));
+const availableLoggerSources = LOGGER_SQL_SOURCES.filter((f) => existsSync(f));
+
+if (availableRepos.length === 0 && availableLoggerSources.length <= 1) {
+  console.log("DB schema drift guard skipped — sibling repos not present (CI context).");
+  console.log(`Looked for: ${REPOS.map((r) => r.migrationsDir).join(", ")}`);
+  process.exit(0);
+}
+
 const repoColumns = new Map();
-for (const repo of REPOS) {
+for (const repo of availableRepos) {
   const files = sortedSqlFiles(repo.migrationsDir);
   if (files.length === 0) {
     fail(`No SQL migration files found for ${repo.key} (${repo.migrationsDir})`);
@@ -127,19 +136,19 @@ for (const [repoKey, columns] of repoColumns.entries()) {
 
 const apiColumns = repoColumns.get("api");
 const adminColumns = repoColumns.get("admin");
-if (!apiColumns || !adminColumns) {
-  fail("Missing repo column sets for comparison");
+if (apiColumns && adminColumns) {
+  const apiMissingFromAdmin = [...apiColumns].filter((column) => !adminColumns.has(column));
+  const adminMissingFromApi = [...adminColumns].filter((column) => !apiColumns.has(column));
+  if (apiMissingFromAdmin.length > 0 || adminMissingFromApi.length > 0) {
+    fail(
+      `event_logs drift detected. api-only: [${apiMissingFromAdmin.join(", ")}], admin-only: [${adminMissingFromApi.join(", ")}]`,
+    );
+  }
+} else if (availableRepos.length === 1) {
+  console.log(`Only ${availableRepos[0].key} migrations found — cross-repo drift check skipped.`);
 }
 
-const apiMissingFromAdmin = [...apiColumns].filter((column) => !adminColumns.has(column));
-const adminMissingFromApi = [...adminColumns].filter((column) => !apiColumns.has(column));
-if (apiMissingFromAdmin.length > 0 || adminMissingFromApi.length > 0) {
-  fail(
-    `event_logs drift detected. api-only: [${apiMissingFromAdmin.join(", ")}], admin-only: [${adminMissingFromApi.join(", ")}]`,
-  );
-}
-
-for (const sourceFile of LOGGER_SQL_SOURCES) {
+for (const sourceFile of availableLoggerSources) {
   const insertColumnLists = extractInsertColumnLists(sourceFile);
   if (insertColumnLists.length === 0) {
     fail(`No event_logs INSERT statements found in ${sourceFile}`);
@@ -161,5 +170,5 @@ for (const sourceFile of LOGGER_SQL_SOURCES) {
 
 console.log("DB schema drift guard passed (event_logs migrations + logger INSERT columns).\n");
 console.log(`Canonical columns checked: ${CANONICAL_EVENT_LOG_COLUMNS.length}`);
-console.log(`Repos checked: ${REPOS.map((repo) => repo.key).join(", ")}`);
-console.log(`Logger sources checked: ${LOGGER_SQL_SOURCES.length}`);
+console.log(`Repos checked: ${availableRepos.map((repo) => repo.key).join(", ") || "(none — skipped)"}`);
+console.log(`Logger sources checked: ${availableLoggerSources.length}`);
