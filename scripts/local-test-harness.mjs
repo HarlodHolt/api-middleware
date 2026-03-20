@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -107,6 +108,12 @@ const startedAt = Date.now();
 console.log(`Running local test harness (${isFull ? "full" : "quick"} mode)`);
 
 for (const workspace of filtered) {
+  if (!existsSync(workspace.cwd)) {
+    console.log(`\n=== ${workspace.label} [${workspace.key}] ===`);
+    console.log(`SKIP: directory not found (${workspace.cwd})`);
+    results.push({ workspace: workspace.key, command: "(directory missing)", ok: true, durationSeconds: "0.0" });
+    continue;
+  }
   const commands = isFull ? workspace.full : workspace.quick;
   console.log(`\n=== ${workspace.label} [${workspace.key}] ===`);
 
