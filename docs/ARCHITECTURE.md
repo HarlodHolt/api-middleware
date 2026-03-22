@@ -280,6 +280,12 @@ PUT /collections/:id (API worker) → D1 update
 | `OPENAI_API_KEY` | — | — | ✓ |
 | `BREVO_API_KEY` | — | — | ✓ |
 | `R2_PUBLIC_URL_OVERRIDE` | optional | — | — |
+| `AUTH_SECRET` | ✓ (NextAuth) | ✓ (NextAuth) | — |
+| `GOOGLE_CLIENT_ID` | ✓ (OAuth) | — | — |
+| `GOOGLE_CLIENT_SECRET` | ✓ (OAuth) | — | — |
+| `RESEND_API_KEY` | — | — | ✓ |
+| `RESEND_FROM_EMAIL` | — | — | ✓ |
+| `ENVIRONMENT` | — | — | ✓ |
 
 ---
 

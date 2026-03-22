@@ -49,7 +49,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - All frontends updated with rotated value via Pages secrets
   - **Priority:** critical
 
-- [ ] **Gate or remove debug/test endpoints from production** · LAUNCH-002
+- [x] **Gate or remove debug/test endpoints from production** · LAUNCH-002
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Security
   - **Why:** `/stripe/test-event`, `/stripe/test-checkout`, `/log-test`, `/health/secrets` are in `PUBLIC_PATHS` (bypass HMAC) and registered unconditionally. Attackers can inject fake Stripe events, flood logs, and enumerate secrets.
@@ -60,7 +60,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### High — Security
 
-- [ ] **Document and configure Google OAuth secrets in Pages** · LAUNCH-003
+- [x] **Document and configure Google OAuth secrets in Pages** · LAUNCH-003
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** Auth / Secrets
   - **Why:** `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` are required at runtime but absent from `wrangler.toml`, `DEPENDENCIES.md`, and `ARCHITECTURE.md`. Silent auth failure if not set.
@@ -113,7 +113,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Webhook to Slack (or similar) triggered on 5xx spike or webhook failure
   - **Priority:** high
 
-- [ ] **Wrap all `logAction`/`writeAuditLog` calls in try/catch** · LAUNCH-009
+- [x] **Wrap all `logAction`/`writeAuditLog` calls in try/catch** · LAUNCH-009
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Error Handling
   - **Why:** Many `logAction` calls in `orderWriteRoutes.ts` are not inside try/catch. D1 log failure will 500 the business operation.
@@ -138,7 +138,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - CI workflow deploys on push to main after tests pass (or Cloudflare Pages GitHub integration enabled)
   - **Priority:** high
 
-- [ ] **Fix concurrent partial refund race on `refunded_cents`** · LAUNCH-012
+- [x] **Fix concurrent partial refund race on `refunded_cents`** · LAUNCH-012
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Data Integrity / Payments
   - **Why:** Concurrent partial refunds can corrupt `refunded_cents` because UPDATE reads a stale value. Known open deficiency with real money.
@@ -146,7 +146,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Serialised per-order lock or atomic UPDATE (e.g. `SET refunded_cents = refunded_cents + ?`)
   - **Priority:** high
 
-- [ ] **Fix `/health` hardcoded `environment: "test"`** · LAUNCH-013
+- [x] **Fix `/health` hardcoded `environment: "test"`** · LAUNCH-013
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Observability
   - **Why:** Health endpoint always returns `"environment": "test"` regardless of actual runtime. Monitoring tools will be permanently confused.
@@ -164,7 +164,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - Hard character limit enforced before prompt construction
   - **Priority:** medium
 
-- [ ] **Add `sitemap.xml` and `robots.txt`** · LAUNCH-015
+- [x] **Add `sitemap.xml` and `robots.txt`** · LAUNCH-015
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** SEO
   - **Why:** No sitemap for search engines. Next.js supports `sitemap.ts` / `robots.ts` natively.
@@ -173,7 +173,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
     - `robots.txt` allowing crawlers
   - **Priority:** medium
 
-- [ ] **Add OpenGraph/Twitter `og:image` to all storefront pages** · LAUNCH-016
+- [x] **Add OpenGraph/Twitter `og:image` to all storefront pages** · LAUNCH-016
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** SEO / Social
   - **Why:** `og:image` only set on collection detail pages. Other pages render blank social cards.
@@ -223,13 +223,13 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### Low
 
-- [ ] **Change `Referrer-Policy` from `no-referrer` to `strict-origin-when-cross-origin`** · LAUNCH-022
+- [x] **Change `Referrer-Policy` from `no-referrer` to `strict-origin-when-cross-origin`** · LAUNCH-022
   - **Repo(s):** olive_and_ivory_api
   - **Area:** Security / Stripe
   - **Why:** `no-referrer` strips origin on Stripe redirect back to `/order-confirmation`.
   - **Priority:** low
 
-- [ ] **Add `Cache-Control: s-maxage` to browse/catalog responses** · LAUNCH-023
+- [x] **Add `Cache-Control: s-maxage` to browse/catalog responses** · LAUNCH-023
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** Performance
   - **Why:** Every browse request hits D1 with no edge caching.
@@ -259,7 +259,7 @@ Add new tasks via `npx tsx scripts/docs_writer.ts add-task` (see [scripts/docs_w
 
 #### Infrastructure
 
-- [ ] **Add www CNAME record in Cloudflare DNS** · INFRA-001
+- [x] **Add www CNAME record in Cloudflare DNS** · INFRA-001
   - **Repo(s):** olive_and_ivory_gifts
   - **Area:** DNS / Infrastructure
   - **Why:** `www.oliveandivorygifts.com` returns NXDOMAIN — users and tests hitting the www subdomain get DNS failures. Root domain resolves fine.
