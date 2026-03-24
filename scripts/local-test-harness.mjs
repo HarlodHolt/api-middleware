@@ -42,20 +42,12 @@ const workspaces = [
     cwd: resolve(root, "olive_and_ivory_api"),
     quick: [
       "npx tsc --noEmit",
-      "npm run test:routes-contract",
-      "npm run test:routes-smoke",
-      "npm run test:routes-verbose",
-      "npm run test:collection-ai-schema",
-      "npm run test:gift-item-relations",
+      "npm run test",
     ],
     full: [
       "npx tsc --noEmit",
       "npm run build",
-      "npm run test:routes-contract",
-      "npm run test:routes-smoke",
-      "npm run test:routes-verbose",
-      "npm run test:collection-ai-schema",
-      "npm run test:gift-item-relations",
+      "npm run test",
     ],
   },
   {
