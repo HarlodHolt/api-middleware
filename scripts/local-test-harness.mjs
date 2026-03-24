@@ -40,15 +40,8 @@ const workspaces = [
     key: "api",
     label: "olive_and_ivory_api",
     cwd: resolve(root, "olive_and_ivory_api"),
-    quick: [
-      "npx tsc --noEmit",
-      "npm run test",
-    ],
-    full: [
-      "npx tsc --noEmit",
-      "npm run build",
-      "npm run test",
-    ],
+    quick: ["npx tsc --noEmit", "npm run test"],
+    full: ["npx tsc --noEmit", "npm run build", "npm run test"],
   },
   {
     key: "storefront",
