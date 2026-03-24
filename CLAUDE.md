@@ -24,6 +24,7 @@ Read this first, then load only the files needed for the task.
 - Reuse existing code and shared primitives where possible before creating new code paths.
 - If you encounter an existing component or feature file over 500 lines, or one that clearly does more than one thing, treat it as technical debt.
 - When that technical debt is identified and not fixed immediately, add or update a task in `docs/TASKS.md`.
+- When creating or editing a file with cross-file dependencies, include or update a `@dependencies` comment block at the top listing related files that must be checked. When editing a file that has a `@dependencies` block, read and update the listed files as needed in the same change.
 
 ## Auto-Update Memory (MANDATORY)
 
